@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photographic Images</title>
+  <style>
+    /* ===================================================
+       FONTS & RESET
+       Using a clean, modern font pair suitable for education
+    =================================================== */
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ===================================================
+       COLOR PALETTE — light mode, brand colors
+       Primary: navy #000054, red #E61E2A
+       Secondary: yellow #FAC800, grey #E3E5E0
+       --accent (yellow) is for fills/backgrounds only — it fails contrast
+       as text/icon color on light surfaces. --accent-ink (navy) carries
+       the accent role anywhere text, icons, or focus rings are needed.
+    =================================================== */
+    :root {
+      --bg:        #ffffff;
+      --surface:   #ffffff;
+      --panel:     #e3e5e0;
+      --border:    #c9ccc3;
+      --accent:    #fac800;
+      --accent-ink:#000054;
+      --text:      #1a1a2e;
+      --muted:     #5b5f58;
+      --snap-green:#2e7d32;
+      --reset-red: #c62828;
+      --warn-amber:#8a6300;
+      --brand-red: #e61e2a;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    /* ===================================================
+       HEADER
+    =================================================== */
+    header {
+      text-align: left;
+      margin-bottom: 28px;
+      width: 100%;
+      max-width: 1100px;
+    }
+    header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--accent-ink);
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+    header p {
+      margin-top: 8px;
+      font-size: 1.05rem;
+      color: var(--muted);
+      font-weight: 300;
+    }
+
+    /* ===================================================
+       MAIN LAYOUT — canvas left, controls right
+    =================================================== */
+    .app-wrapper {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      max-width: 1100px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    /* ===================================================
+       CAMERA VIEWFINDER (canvas area)
+    =================================================== */
+    .viewfinder-wrap {
+      flex: 1 1 520px;
+      position: relative;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 2px solid var(--border);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    /* The live scene canvas */
+    #liveCanvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4/3;
+    }
+
+    /* The snapshot result canvas — hidden until snap is pressed */
+    #snapCanvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4/3;
+    }
+
+    /* ===================================================
+       FOCUS OVERLAY
+       Drawn with CSS, simulates a real viewfinder grid
+    =================================================== */
+    .focus-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    /* Rule-of-thirds grid */
+    .focus-overlay::before,
+    .focus-overlay::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.12);
+    }
+    .focus-overlay::before {
+      left: 33.33%; top: 0; width: 1px; height: 100%;
+      box-shadow: 33.33% 0 0 rgba(255,255,255,0.12);
+    }
+    .focus-overlay::after {
+      top: 33.33%; left: 0; height: 1px; width: 100%;
+      box-shadow: 0 33.33% 0 rgba(255,255,255,0.12);
+    }
+
+    /* Centre focus brackets */
+    .focus-bracket {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 18%; height: 24%;
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+      opacity: 0.85;
+    }
+    .focus-bracket::before,
+    .focus-bracket::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+    }
+    .focus-bracket::before {
+      top: -2px; left: -2px;
+      border-top: 3px solid var(--accent);
+      border-left: 3px solid var(--accent);
+    }
+    .focus-bracket::after {
+      bottom: -2px; right: -2px;
+      border-bottom: 3px solid var(--accent);
+      border-right: 3px solid var(--accent);
+    }
+
+    /* Corner markers */
+    .corner {
+      position: absolute;
+      width: 16px; height: 16px;
+      border-color: rgba(255,255,255,0.35);
+      border-style: solid;
+    }
+    .corner.tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+    .corner.tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+    .corner.bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+    .corner.br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+    /* Motion blur hint — shown in top-right of viewfinder when shutter is slow */
+    .motion-hint {
+      position: absolute;
+      top: 10px; right: 14px;
+      background: rgba(0,0,0,0.6);
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 4px;
+      display: none;
+      pointer-events: none;
+    }
+    .motion-hint.visible { display: block; }
+
+    /* HUD bar at the bottom of the viewfinder */
+    .hud-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.75));
+      padding: 20px 14px 10px;
+      display: flex;
+      gap: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      font-family: 'DM Sans', monospace;
+    }
+    .hud-bar span { opacity: 0.9; }
+
+    /* ===================================================
+       SNAPSHOT OVERLAY — shows the result after "Snap"
+    =================================================== */
+    .snapshot-panel {
+      display: none;
+      flex-direction: column;
+    }
+    .snapshot-panel.visible { display: flex; }
+
+    .snapshot-label {
+      background: var(--panel);
+      border-top: 2px solid var(--brand-red);
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      color: var(--accent-ink);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .snapshot-label .dot {
+      width: 8px; height: 8px;
+      background: var(--snap-green);
+      border-radius: 50%;
+      animation: blink 1.4s ease-in-out 3;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ===================================================
+       FLASH EFFECT on snap
+    =================================================== */
+    .flash {
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      border-radius: var(--radius);
+    }
+    .flash.go {
+      animation: flashAnim 0.35s ease-out forwards;
+    }
+    @keyframes flashAnim {
+      0%   { opacity: 0.9; }
+      100% { opacity: 0; }
+    }
+
+    /* ===================================================
+       CONTROLS PANEL
+    =================================================== */
+    .controls {
+      flex: 2 1 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .control-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    /* Section title inside a card */
+    .card-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    /* ===================================================
+       INDIVIDUAL SLIDER ROW
+    =================================================== */
+    .slider-row {
+      margin-bottom: 18px;
+    }
+    .slider-row:last-child { margin-bottom: 0; }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    /* Lighting dropdown sits inline in the header row */
+    .slider-header select {
+      width: auto;
+      min-width: 220px;
+      max-width: 75%;
+      font-size: 0.88rem;
+      padding: 6px 10px;
+    }
+    .slider-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    /* The live value badge beside the label */
+    .slider-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-ink);
+      background: rgba(250,200,0,0.18);
+      padding: 2px 10px;
+      border-radius: 20px;
+      min-width: 72px;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    .slider-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Custom range input */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--accent-ink);
+      box-shadow: 0 0 0 3px rgba(0,0,84,0.16);
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    input[type=range]:active::-webkit-slider-thumb {
+      box-shadow: 0 0 0 6px rgba(0,0,84,0.22);
+      transform: scale(1.15);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--accent-ink);
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Lighting is a <select> not a slider */
+    select {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235b5f58' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    select:focus { outline: 2px solid var(--accent-ink); }
+
+    /* ===================================================
+       EFFECT DESCRIPTION — shows what each setting does
+    =================================================== */
+    .effect-description {
+      background: rgba(250, 200, 0, 0.18);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 44px;
+      transition: all 0.2s;
+    }
+
+    /* ===================================================
+       BUTTONS
+    =================================================== */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-start;
+    }
+    .btn {
+      flex: 0 0 auto;
+      min-width: 130px;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: transform 0.1s, box-shadow 0.15s, opacity 0.15s;
+    }
+    .btn:active { transform: scale(0.96); }
+
+    .btn-snap {
+      background: linear-gradient(135deg, var(--brand-red), #b3121f);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(230,30,42,0.35);
+    }
+    .btn-snap:hover { box-shadow: 0 6px 22px rgba(230,30,42,0.5); }
+
+    .btn-reset {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-reset:hover { background: var(--border); color: var(--text); }
+
+    /* ===================================================
+       RESULT FEEDBACK CARD — shown after snap
+    =================================================== */
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: none;
+    }
+    .result-card.visible { display: block; }
+    .result-card h3 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .result-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .tag-good  { background: rgba(46,125,50,0.12);  color: var(--snap-green);  border: 1px solid rgba(46,125,50,0.3); }
+    .tag-warn  { background: rgba(138,99,0,0.12);    color: var(--warn-amber);  border: 1px solid rgba(138,99,0,0.3); }
+    .tag-bad   { background: rgba(198,40,40,0.12);   color: var(--reset-red);   border: 1px solid rgba(198,40,40,0.3); }
+    .result-summary {
+      margin-top: 10px;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ===================================================
+       EV EXPOSURE METER
+    =================================================== */
+    .ev-block {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+    .ev-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .ev-bar {
+      position: relative;
+      height: 22px;
+      background: linear-gradient(to right,
+        #000054 0%,
+        #1a3a7a 20%,
+        #3a6a8a 43%,
+        #2e7d32 50%,
+        #6a8a35 57%,
+        #c47020 80%,
+        #c62828 100%);
+      border-radius: 4px;
+      overflow: visible;
+    }
+    .ev-marker {
+      position: absolute;
+      top: -5px;
+      width: 4px;
+      height: 32px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.4);
+      border-radius: 2px;
+      transition: left 0.15s ease;
+      transform: translateX(-50%);
+      left: 50%;
+    }
+    .ev-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+    .ev-status {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .ev-status.correct { color: var(--snap-green); }
+    .ev-status.under   { color: var(--accent-ink); }
+    .ev-status.over    { color: var(--reset-red); }
+
+    /* ===================================================
+       SCENE TABS
+    =================================================== */
+    .scene-tabs {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .scene-tab {
+      padding: 9px 22px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .scene-tab:hover { background: var(--panel); color: var(--text); }
+    .scene-tab.active {
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
+    }
+
+    /* ===================================================
+       SNAPSHOT SECTION — below the main app wrapper
+    =================================================== */
+    .snapshot-section {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      max-width: 1100px;
+      align-items: flex-start;
+      margin-top: 24px;
+    }
+    .snapshot-col { flex: 3 1 0; }
+    .analysis-col { flex: 2 1 0; }
+
+    /* ===================================================
+       ACCESSIBILITY — visible keyboard focus indicators
+       Navy (--accent-ink) used everywhere: yellow fails the
+       3:1 non-text contrast minimum against white.
+    =================================================== */
+    button:focus-visible,
+    .scene-tab:focus-visible,
+    input[type=range]:focus-visible {
+      outline: 2px solid var(--accent-ink);
+      outline-offset: 2px;
+    }
+
+    /* ===================================================
+       RESPONSIVE
+    =================================================== */
+    @media (max-width: 700px) {
+      .app-wrapper { flex-direction: column; }
+      .controls { flex: 1 1 auto; width: 100%; }
+      .snapshot-section { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===================================================
+     HEADER
+=================================================== -->
+<header>
+  <h1>Photographic Images</h1>
+  <p>Change the camera settings, then press <strong>Capture</strong> to see your results.</p>
+</header>
+
+<!-- ===================================================
+     SCENE TABS
+=================================================== -->
+<div class="scene-tabs">
+  <button class="scene-tab active" data-scene="0">Studio Fashion</button>
+  <button class="scene-tab"        data-scene="1">Editorial</button>
+  <button class="scene-tab"        data-scene="2">Product</button>
+  <button class="scene-tab"        data-scene="3">Still Life</button>
+  <button class="scene-tab"        data-scene="4">Interior</button>
+</div>
+
+<!-- ===================================================
+     MAIN APP WRAPPER
+=================================================== -->
+<div class="app-wrapper">
+
+  <!-- ===============================================
+       LEFT: VIEWFINDER + SNAPSHOT
+  =============================================== -->
+  <div style="flex:3 1 0; display:flex; flex-direction:column; gap:16px;">
+
+    <!-- Live scene (before snap) -->
+    <div class="viewfinder-wrap" id="liveWrap">
+      <canvas id="liveCanvas" width="800" height="600"></canvas>
+
+      <!-- Focus overlay elements -->
+      <div class="focus-overlay">
+        <div class="focus-bracket"></div>
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+      </div>
+
+      <!-- HUD readout at bottom of viewfinder -->
+      <div class="hud-bar" id="hudBar">
+        <span id="hud-iso">ISO 100</span>
+        <span>·</span>
+        <span id="hud-ap">f/2.8</span>
+        <span>·</span>
+        <span id="hud-ss">1/250</span>
+        <span>·</span>
+        <span id="hud-lt">Studio strobes</span>
+      </div>
+
+      <!-- Motion blur hint (shown when shutter ≤ 1/15s) -->
+      <div class="motion-hint" id="motionHint">Motion blur · see snap</div>
+
+      <!-- White flash overlay -->
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <!-- Snap & Reset buttons below the live scene -->
+    <div class="btn-row">
+      <button class="btn btn-snap" id="btnSnap">Capture</button>
+      <button class="btn btn-reset" id="btnReset">↺ Reset</button>
+    </div>
+
+  </div>
+
+  <!-- ===============================================
+       RIGHT: CAMERA CONTROLS
+  =============================================== -->
+  <div class="controls">
+
+    <!-- LIGHTING / ISO / APERTURE / SHUTTER SPEED / EV METER -->
+    <div class="control-card">
+      <div class="card-title">🎛 Camera Settings</div>
+
+      <!-- Lighting condition -->
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Lighting</span>
+          <select id="sl-lighting">
+            <option value="0">Dim indoors — EV 3</option>
+            <option value="1">Bright indoors — EV 6</option>
+            <option value="2">Overcast — EV 9</option>
+            <option value="3" selected>Studio strobes — EV 11</option>
+            <option value="4">Partly cloudy — EV 12</option>
+            <option value="5">Mostly sunny — EV 14</option>
+            <option value="6">Sunny — EV 16</option>
+          </select>
+        </div>
+        <p class="slider-hint">The ambient light available in the scene. Your camera settings must match this to expose correctly.</p>
+      </div>
+
+      <!-- ISO slider -->
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">ISO</span>
+          <span class="slider-value" id="val-iso">100</span>
+        </div>
+        <p class="slider-hint">Sensor sensitivity to light. Higher = brighter but grainier.</p>
+        <!--
+          ISO steps: 100, 200, 400, 800, 1600, 3200, 6400
+          Slider steps 0-6 map to these values.
+        -->
+        <input type="range" id="sl-iso" min="0" max="6" step="1" value="0" />
+      </div>
+
+      <!-- Aperture slider -->
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Aperture</span>
+          <span class="slider-value" id="val-aperture">f/2.8</span>
+        </div>
+        <p class="slider-hint">Size of the lens opening. Lower = more light, blurred background.</p>
+        <!--
+          Aperture steps: f/2.8, f/4, f/5.6, f/8, f/11, f/16, f/22
+          Slider steps 0-6 map to these values.
+        -->
+        <input type="range" id="sl-aperture" min="0" max="6" step="1" value="0" />
+      </div>
+
+      <!-- Shutter speed slider -->
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Shutter Speed</span>
+          <span class="slider-value" id="val-shutter">1/250s</span>
+        </div>
+        <p class="slider-hint">How long the shutter stays open. Faster = freezes motion, less light.</p>
+        <!--
+          Shutter speeds: 1", 1/2, 1/6, 1/15, 1/60, 1/250, 1/500, 1/1000, 1/4000
+          Slider steps 0-8 map to these values.
+        -->
+        <input type="range" id="sl-shutter" min="0" max="8" step="1" value="5" />
+      </div>
+
+      <!-- EV exposure meter -->
+      <div class="ev-block">
+        <div class="ev-head">
+          <span class="card-title" style="margin-bottom:0">Exposure</span>
+          <span class="ev-status correct" id="evStatus">Balanced</span>
+        </div>
+        <div class="ev-bar">
+          <div class="ev-marker" id="evMarker"></div>
+        </div>
+        <div class="ev-scale">
+          <span>Under</span>
+          <span>−2</span>
+          <span>Balanced</span>
+          <span>+2</span>
+          <span>Over</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contextual tip / effect description -->
+    <div class="effect-description" id="effectDesc">
+      Adjust any slider to see how it affects your photo.
+    </div>
+
+  </div><!-- /controls -->
+</div><!-- /app-wrapper -->
+
+<!-- ===================================================
+     SNAPSHOT SECTION — appears below everything after Snap
+=================================================== -->
+<div class="snapshot-section">
+  <div class="snapshot-col">
+    <div class="snapshot-panel" id="snapPanel">
+      <div class="snapshot-label">
+        <span class="dot"></span> SNAPSHOT
+      </div>
+      <canvas id="snapCanvas" width="800" height="600"></canvas>
+    </div>
+  </div>
+  <div class="analysis-col">
+    <div class="result-card" id="resultCard">
+      <h3>Shot Analysis</h3>
+      <div class="result-tags" id="resultTags"></div>
+      <p class="result-summary" id="resultSummary"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   PHOTOGRAPHIC IMAGES — Simulation Engine
+   =====================================================
+   This script drives all the canvas drawing and
+   computes how ISO, Aperture, Shutter Speed, and
+   Lighting combine to produce a photo result.
+===================================================== */
+
+// ── STEP VALUES ──────────────────────────────────────
+// Each camera setting uses discrete steps, just like
+// a real camera's "stops" system.
+
+const ISO_STEPS    = [100, 200, 400, 800, 1600, 3200, 6400];
+const AP_STEPS     = [2.8, 4, 5.6, 8, 11, 16, 22];          // f-numbers
+const SS_STEPS     = [1, 0.5, 1/6, 1/15, 1/60, 1/250, 1/500, 1/1000, 1/4000]; // seconds
+const SS_LABELS    = ['1"', '1/2', '1/6', '1/15', '1/60', '1/250', '1/500', '1/1000', '1/4000'];
+const LT_LABELS    = ['Dim indoors', 'Bright indoors', 'Overcast', 'Studio strobes', 'Partly cloudy', 'Mostly sunny', 'Sunny'];
+// EV (exposure value) of each lighting condition
+// Higher EV = more ambient light available
+// Studio strobes (EV 11) calibrated so ISO 100 + f/2.8 + 1/250s = exposure ≈ 1.0
+const LT_EV        = [3, 6, 9, 11, 12, 14, 16];
+
+// ── SCENE CONFIG ─────────────────────────────────────
+// moving: true  → shutter speed produces motion blur (subject is in motion)
+// moving: false → no motion blur regardless of shutter (subject is static or strobes freeze it)
+// defaults      → slider indices restored on Reset or scene switch
+// bgSrc/wheelSrc/modelSrc → null means use placeholder until asset is ready
+const SCENES = [
+  {
+    id:       'studio',
+    label:    'Studio Fashion',
+    moving:   false,
+    defaults: { iso: 0, ap: 0, ss: 5, lt: 3 },  // ISO 100 · f/2.8 · 1/250s · Studio strobes
+    bgSrc:    'Assets/Fashion/plain-studio-bg.jpg',
+    wheelSrc: 'Assets/Fashion/wheel-bg.png',
+    modelSrc: 'Assets/Fashion/AE-model.webm'
+  },
+  {
+    id:       'lifestyle',
+    label:    'Editorial',
+    moving:   true,
+    defaults: { iso: 1, ap: 3, ss: 6, lt: 5 },  // ISO 200 · f/8 · 1/500s · Mostly sunny (EV 14)
+    bgSrc:    'Assets/Lifestyle/bg-editorial.png',
+    wheelSrc: null,
+    modelSrc: 'Assets/Lifestyle/subject-editorial-ballet.webm'
+  },
+  {
+    id:       'product',
+    label:    'Product',
+    moving:   false,
+    defaults: { iso: 0, ap: 3, ss: 4, lt: 3 },  // ISO 100 · f/8 · 1/60s · Studio strobes
+    bgSrc:    'Assets/Product/product-bg.jpg',
+    wheelSrc: null,
+    modelSrc: 'Assets/Product/product-sub.png',
+    fgSrc:    'Assets/Product/product-fg.png'
+  },
+  {
+    id:       'still-life',
+    label:    'Still Life',
+    moving:   false,
+    defaults: { iso: 0, ap: 1, ss: 5, lt: 4 },  // ISO 100 · f/4 · 1/250s · Partly cloudy (EV 12)
+    bgSrc:    'Assets/Still Life/BG-Still-Park.mp4',
+    wheelSrc: null,
+    modelSrc: 'Assets/Still Life/Subject-Still-Life.webm',
+    fgSrc:    null
+  },
+  {
+    id:       'interior',
+    label:    'Interior',
+    moving:   false,
+    defaults: { iso: 1, ap: 4, ss: 3, lt: 2 },  // ISO 200 · f/11 · 1/15s · Overcast (EV 9)
+    bgSrc:    'Assets/Interior/bg-interior.png',
+    wheelSrc: null,
+    modelSrc: 'Assets/Interior/mid-interior.png',
+    fgSrc:    'Assets/Interior/fg-interior.png'
+  }
+];
+let currentScene = 0;
+
+// ── CANVAS REFERENCES ────────────────────────────────
+const liveCanvas = document.getElementById('liveCanvas');
+const liveCtx    = liveCanvas.getContext('2d');
+const snapCanvas = document.getElementById('snapCanvas');
+const snapCtx    = snapCanvas.getContext('2d');
+
+// ── SLIDER & SELECT ELEMENTS ─────────────────────────
+const slISO      = document.getElementById('sl-iso');
+const slAp       = document.getElementById('sl-aperture');
+const slSS       = document.getElementById('sl-shutter');
+const slLt       = document.getElementById('sl-lighting');
+
+// ── VALUE DISPLAY BADGES ─────────────────────────────
+const valISO     = document.getElementById('val-iso');
+const valAp      = document.getElementById('val-aperture');
+const valSS      = document.getElementById('val-shutter');
+
+// ── HUD (heads-up display in viewfinder) ─────────────
+const hudISO     = document.getElementById('hud-iso');
+const hudAp      = document.getElementById('hud-ap');
+const hudSS      = document.getElementById('hud-ss');
+const hudLt      = document.getElementById('hud-lt');
+
+const effectDesc = document.getElementById('effectDesc');
+
+/* =====================================================
+   ASSETS
+===================================================== */
+
+// Pre-create Image/Video elements for every scene that has assets.
+// Stored on the scene object (_bg, _wheel, _model) so switching scenes
+// is instant after the first load — the browser has already cached them.
+const VIDEO_EXTS = /\.(mp4|webm|mov|ogg)$/i;
+
+function makeVideo(src) {
+  const v = document.createElement('video');
+  v.src = src; v.loop = true; v.muted = true; v.playsInline = true;
+  return v;
+}
+
+function initSceneAssets() {
+  SCENES.forEach((scene, i) => {
+    if (scene.bgSrc) {
+      // Background can be a JPEG/PNG or a video (MP4, WebM, etc.)
+      // Video backgrounds don't need alpha — MP4 works fine.
+      if (VIDEO_EXTS.test(scene.bgSrc)) {
+        scene._bg = makeVideo(scene.bgSrc);
+      } else {
+        scene._bg = new Image();
+        scene._bg.src = scene.bgSrc;
+      }
+    }
+    if (scene.wheelSrc) {
+      scene._wheel = new Image();
+      scene._wheel.src = scene.wheelSrc;
+    }
+    if (scene.modelSrc) {
+      if (VIDEO_EXTS.test(scene.modelSrc)) {
+        // Video subject (WebM with alpha) — loop-flash guards attached per video
+        const v = makeVideo(scene.modelSrc);
+        v.addEventListener('seeking', () => {
+          if (currentScene === i) holdCache = true;
+        });
+        v.addEventListener('seeked', () => {
+          if (currentScene !== i) return;
+          if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+            v.requestVideoFrameCallback(() => { holdCache = false; });
+          } else {
+            setTimeout(() => { holdCache = false; }, 150);
+          }
+        });
+        scene._model = v;
+      } else {
+        // Static PNG/JPEG subject — Image element; frameCache populated on first draw
+        scene._model = new Image();
+        scene._model.src = scene.modelSrc;
+      }
+    }
+    if (scene.fgSrc) {
+      scene._fg = new Image();
+      scene._fg.src = scene.fgSrc;
+    }
+  });
+}
+initSceneAssets();
+
+/* =====================================================
+   SCENE DRAWING
+===================================================== */
+
+// Offscreen cache holds the last good frame so the loop seek never flashes.
+// holdCache stays true until the browser confirms a new decoded frame is ready.
+const frameCache    = document.createElement('canvas');
+frameCache.width    = 800;
+frameCache.height   = 600;
+const frameCacheCtx = frameCache.getContext('2d');
+let   hasCachedFrame = false;
+let   holdCache      = false;
+
+// Offscreen canvas for the live DOF blur pass (background blurred, model restored sharp)
+const liveDofCanvas = document.createElement('canvas');
+liveDofCanvas.width = 800;
+liveDofCanvas.height = 600;
+const liveDofCtx    = liveDofCanvas.getContext('2d');
+
+// Offscreen canvas for the live foreground DOF blur pass
+const fgDofCanvas  = document.createElement('canvas');
+fgDofCanvas.width  = 800;
+fgDofCanvas.height = 600;
+const fgDofCtx     = fgDofCanvas.getContext('2d');
+
+new ResizeObserver(() => {
+  const rect = liveCanvas.getBoundingClientRect();
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
+  if (w === 0 || h === 0 || (w === liveCanvas.width && h === liveCanvas.height)) return;
+  liveCanvas.width    = w;
+  liveCanvas.height   = h;
+  snapCanvas.width    = w;
+  snapCanvas.height   = h;
+  frameCache.width    = w;
+  frameCache.height   = h;
+  liveDofCanvas.width  = w;
+  liveDofCanvas.height = h;
+  fgDofCanvas.width   = w;
+  fgDofCanvas.height  = h;
+  hasCachedFrame = false;
+}).observe(liveCanvas);
+
+
+// Draws only the static background layers (JPEG + wheel PNG).
+// Used separately in DOF passes so the model is never included in the blur source.
+// Falls back to a simple gradient placeholder when scene assets aren't loaded yet.
+function drawBackground(ctx) {
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  const scene = SCENES[currentScene];
+  const bg = scene._bg;
+
+  if (bg instanceof HTMLVideoElement) {
+    // Video background (e.g. MP4) — cover-scale to fill canvas without distortion
+    if (bg.readyState >= 2) {
+      const vw    = bg.videoWidth  || 1920;
+      const vh    = bg.videoHeight || 1080;
+      const scale = Math.max(W / vw, H / vh);
+      ctx.drawImage(bg,
+        (W - vw * scale) / 2, (H - vh * scale) / 2,
+        vw * scale, vh * scale);
+    }
+  } else if (bg && bg.complete && bg.naturalWidth > 0) {
+    // Image background (JPEG / PNG) — cover-scale to fill canvas without distortion
+    const iw    = bg.naturalWidth;
+    const ih    = bg.naturalHeight;
+    const scale = Math.max(W / iw, H / ih);
+    ctx.drawImage(bg,
+      (W - iw * scale) / 2, (H - ih * scale) / 2,
+      iw * scale, ih * scale);
+  } else {
+    // Placeholder gradient — style varies by scene type
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    if (SCENES[currentScene].id === 'product' || SCENES[currentScene].id === 'still-life') {
+      // Neutral warm grey surface for product / still life
+      grad.addColorStop(0, '#2e2b28');
+      grad.addColorStop(1, '#4a4540');
+    } else {
+      // Sky-to-ground for outdoor / lifestyle scenes
+      grad.addColorStop(0,   '#5B8FBF');
+      grad.addColorStop(0.5, '#A8C8E0');
+      grad.addColorStop(0.5, '#7B9E5E');
+      grad.addColorStop(1,   '#4A7035');
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (scene._wheel && scene._wheel.complete && scene._wheel.naturalWidth > 0) {
+    const ww    = scene._wheel.naturalWidth;
+    const wh    = scene._wheel.naturalHeight;
+    const scale = Math.max(W / ww, H / wh);
+    ctx.drawImage(scene._wheel,
+      (W - ww * scale) / 2, (H - wh * scale) / 2,
+      ww * scale, wh * scale);
+  }
+}
+
+function drawBaseScene(ctx) {
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  drawBackground(ctx);
+
+  const model = SCENES[currentScene]._model;
+
+  if (model instanceof HTMLVideoElement) {
+    if (model.readyState >= 2) {
+      const vw    = model.videoWidth  || 1920;
+      const vh    = model.videoHeight || 1080;
+      const scale = Math.max(W / vw, H / vh);
+      const dw = vw * scale, dh = vh * scale;
+      const dx = (W - dw) / 2, dy = (H - dh) / 2;
+      if (!holdCache) {
+        ctx.drawImage(model, dx, dy, dw, dh);
+        frameCacheCtx.clearRect(0, 0, W, H);
+        frameCacheCtx.drawImage(model, dx, dy, dw, dh);
+        hasCachedFrame = true;
+      } else if (hasCachedFrame) {
+        ctx.drawImage(frameCache, 0, 0);
+      }
+    }
+  } else if (model instanceof HTMLImageElement && model.complete && model.naturalWidth > 0) {
+    // Static PNG subject — populate frameCache once, then always draw from it
+    if (!hasCachedFrame) {
+      const iw    = model.naturalWidth, ih = model.naturalHeight;
+      const scale = Math.max(W / iw, H / ih);
+      const dw = iw * scale, dh = ih * scale;
+      const dx = (W - dw) / 2, dy = (H - dh) / 2;
+      frameCacheCtx.clearRect(0, 0, W, H);
+      frameCacheCtx.drawImage(model, dx, dy, dw, dh);
+      hasCachedFrame = true;
+    }
+    ctx.drawImage(frameCache, 0, 0);
+  }
+}
+
+
+/* =====================================================
+   SCENE SWITCHING
+===================================================== */
+
+function loadScene(idx) {
+  if (idx === currentScene) return;
+
+  // Pause the outgoing scene's videos
+  const outScene = SCENES[currentScene];
+  if (outScene._model instanceof HTMLVideoElement) outScene._model.pause();
+  if (outScene._bg   instanceof HTMLVideoElement) outScene._bg.pause();
+
+  currentScene   = idx;
+  holdCache      = false;
+  hasCachedFrame = false;
+
+  // Apply this scene's default settings
+  const d = SCENES[idx].defaults;
+  slISO.value = d.iso;
+  slAp.value  = d.ap;
+  slSS.value  = d.ss;
+  slLt.value  = d.lt;
+
+  // Start the incoming scene's videos
+  const inScene = SCENES[idx];
+  if (inScene._model instanceof HTMLVideoElement) inScene._model.play().catch(() => {});
+  if (inScene._bg   instanceof HTMLVideoElement) inScene._bg.play().catch(() => {});
+
+  // Update active tab indicator
+  document.querySelectorAll('.scene-tab').forEach((tab, i) => {
+    tab.classList.toggle('active', i === idx);
+  });
+
+  // Clear snapshot and result from previous scene
+  document.getElementById('snapPanel').classList.remove('visible');
+  document.getElementById('resultCard').classList.remove('visible');
+  effectDesc.textContent = 'Adjust any slider to see how it affects your photo.';
+
+  updateUI(null);
+}
+
+/* =====================================================
+   EXPOSURE CALCULATION
+   We combine all four settings into a single "exposure"
+   value (0 = pitch black, 1 = perfectly lit, >1 = blown out).
+
+   Real photography uses EV (Exposure Value).
+   We simulate it here with approximate math.
+===================================================== */
+
+/**
+ * getExposure()
+ * Returns a float:
+ *   < 0.4 = underexposed (too dark)
+ *   0.4 – 0.7 = slightly under
+ *   0.7 – 1.3 = correct exposure
+ *   1.3 – 1.8 = slightly over
+ *   > 1.8 = overexposed (blown out)
+ */
+function getExposure() {
+  const isoIdx  = parseInt(slISO.value);
+  const apIdx   = parseInt(slAp.value);
+  const ssIdx   = parseInt(slSS.value);
+  const ltIdx   = parseInt(slLt.value);
+
+  const iso = ISO_STEPS[isoIdx];
+  const ap  = AP_STEPS[apIdx];
+  const ss  = SS_STEPS[ssIdx];
+  const ltEV = LT_EV[ltIdx];
+
+  // EV formula (simplified):
+  // EV = log2(N² / t) where N = f-number, t = shutter time
+  // Then adjust for ISO (doubling ISO = +1 EV sensitivity)
+  const cameraSensitivityEV = Math.log2((ap * ap) / ss) - Math.log2(iso / 100);
+  // Exposure = available light vs camera settings
+  // exposure of 0 = black; exposure of 1 = "correct"; >1 = overexposed
+  const diff = ltEV - cameraSensitivityEV; // positive = over, negative = under
+  // Map diff around 0 → exposure around 1
+  return Math.pow(2, diff / 5);
+}
+
+/**
+ * getNoiseLevel()
+ * ISO noise: higher ISO = more grain.
+ * Returns a 0–1 value (0 = clean, 1 = very noisy).
+ */
+function getNoiseLevel() {
+  const isoIdx = parseInt(slISO.value);
+  // Grain starts at ISO 200 (idx 1), smooth 5-stop curve
+  return Math.min(1, Math.max(0, (isoIdx - 1) / 5));
+}
+
+/**
+ * getBlurAmount()
+ * Shutter speed blur: slower = motion blur.
+ * Aperture blur: low f-stop = shallow depth of field (background blur).
+ * Returns { motionBlur: 0-20, dofBlur: 0-12 }
+ */
+function getBlurAmount() {
+  const ssIdx = parseInt(slSS.value);
+  const apIdx = parseInt(slAp.value);
+
+  // Motion blur only applies to scenes with moving subjects.
+  // Static scenes (Studio, Product, Still life) never show motion smear —
+  // the subject isn't moving, so slow shutters just let in more light.
+  const motionBlur = SCENES[currentScene].moving
+    ? Math.max(0, (4 - ssIdx) * 5)
+    : 0;
+
+  // Smooth DOF curve across all 7 aperture stops
+  const dofTable = [12, 8, 5, 2.5, 1.2, 0.5, 0];
+  const dofBlur  = dofTable[apIdx];
+
+  return { motionBlur, dofBlur };
+}
+
+/* =====================================================
+   LIVE GRAIN SYSTEM
+   Pre-generated noise texture refreshed every 4 frames
+   so grain appears to shift (film-like) at low CPU cost.
+===================================================== */
+
+let grainCanvas = null;
+let grainFrameN = 0;
+
+function refreshLiveGrain(W, H, amount) {
+  if (!grainCanvas || grainCanvas.width !== W || grainCanvas.height !== H) {
+    grainCanvas = document.createElement('canvas');
+    grainCanvas.width = W; grainCanvas.height = H;
+  }
+  const gCtx = grainCanvas.getContext('2d');
+  const img  = gCtx.createImageData(W, H);
+  const data = img.data;
+  const size = Math.max(1, Math.round(1 + amount));
+  for (let y = 0; y < H; y += size) {
+    for (let x = 0; x < W; x += size) {
+      const v = Math.floor(Math.random() * 255);
+      for (let dy = 0; dy < size && y+dy < H; dy++) {
+        for (let dx = 0; dx < size && x+dx < W; dx++) {
+          const i = ((y+dy)*W + (x+dx))*4;
+          data[i] = data[i+1] = data[i+2] = v; data[i+3] = 255;
+        }
+      }
+    }
+  }
+  gCtx.putImageData(img, 0, 0);
+}
+
+/* =====================================================
+   LIVE CANVAS RENDERING
+   Continuously redraws the "viewfinder" look based on
+   current slider values, as a real-time preview.
+===================================================== */
+
+function renderLive() {
+  const W = liveCanvas.width, H = liveCanvas.height;
+  liveCtx.clearRect(0, 0, W, H);
+
+  // 1. Draw the base scene (JPEG bg → wheel PNG → model video)
+  drawBaseScene(liveCtx);
+
+  // 2. DOF blur — blur background layers only, then place sharp model on top.
+  //    Blurring liveCanvas (which already contains the model) creates a blurred
+  //    model silhouette that bleeds outside the sharp model as a halo. Fix: only
+  //    blur bg + wheel via drawBackground(), which never includes the model.
+  const { motionBlur, dofBlur } = getBlurAmount();
+  if (dofBlur > 0 && hasCachedFrame) {
+    liveDofCtx.clearRect(0, 0, W, H);
+    liveDofCtx.filter = `blur(${dofBlur * 0.8}px)`;
+    drawBackground(liveDofCtx);
+    liveDofCtx.filter = 'none';
+    liveCtx.drawImage(liveDofCanvas, 0, 0);
+    liveCtx.drawImage(frameCache, 0, 0);
+  }
+
+  // 2b. Foreground layer — drawn on top of the sharp subject.
+  //     Blurred more than the background (closer to the camera = stronger blur).
+  const fg = SCENES[currentScene]._fg;
+  if (fg && fg.complete && fg.naturalWidth > 0) {
+    const fw = fg.naturalWidth, fh = fg.naturalHeight;
+    const scale = Math.max(W / fw, H / fh);
+    const fdx = (W - fw * scale) / 2, fdy = (H - fh * scale) / 2;
+    if (dofBlur > 0) {
+      fgDofCtx.clearRect(0, 0, W, H);
+      fgDofCtx.filter = `blur(${dofBlur * 1.2}px)`;
+      fgDofCtx.drawImage(fg, fdx, fdy, fw * scale, fh * scale);
+      fgDofCtx.filter = 'none';
+      liveCtx.drawImage(fgDofCanvas, 0, 0);
+    } else {
+      liveCtx.drawImage(fg, fdx, fdy, fw * scale, fh * scale);
+    }
+  }
+
+  // 3. Motion blur ghost — offset the subject layer only (frameCache), not the full canvas.
+  //    With a locked-off camera, only the moving subject blurs; the background stays sharp.
+  if (motionBlur > 0 && hasCachedFrame) {
+    const offset = Math.round(motionBlur * 0.5);
+    liveCtx.save();
+    liveCtx.globalAlpha = 0.22;
+    liveCtx.translate(offset, 0);
+    liveCtx.drawImage(frameCache, 0, 0);
+    liveCtx.restore();
+  }
+
+  // 3. Lighting ambient tint
+  const ltIdx = parseInt(slLt.value);
+  if (ltIdx === 0) {
+    liveCtx.fillStyle = 'rgba(10,10,30,0.45)';
+    liveCtx.fillRect(0, 0, W, H);
+  } else if (ltIdx === 1) {
+    liveCtx.fillStyle = 'rgba(10,10,30,0.2)';
+    liveCtx.fillRect(0, 0, W, H);
+  } else if (ltIdx === 2) {
+    liveCtx.fillStyle = 'rgba(180,190,200,0.18)';
+    liveCtx.fillRect(0, 0, W, H);
+  }
+
+  // 4. Exposure — cool tint (under) / warm tint (over), matches snap quality
+  const exp = getExposure();
+  if (exp < 1) {
+    const darkness = Math.min(0.7, Math.pow(1 - exp, 0.6) * 0.85);
+    liveCtx.fillStyle = `rgba(0,0,8,${darkness})`;
+    liveCtx.fillRect(0, 0, W, H);
+  } else if (exp > 1) {
+    const bright = Math.min(0.7, Math.pow(exp - 1, 0.55) * 0.65);
+    liveCtx.fillStyle = `rgba(255,252,240,${bright})`;
+    liveCtx.fillRect(0, 0, W, H);
+  }
+
+  // 5. ISO grain — pre-generated texture refreshed every 4 frames (~15fps)
+  const noise = getNoiseLevel();
+  if (noise > 0) {
+    grainFrameN++;
+    if (grainFrameN % 4 === 0 || !grainCanvas || grainCanvas.width !== W) {
+      refreshLiveGrain(W, H, noise);
+    }
+    liveCtx.save();
+    liveCtx.globalCompositeOperation = 'soft-light';
+    liveCtx.globalAlpha = noise * 0.65;
+    liveCtx.drawImage(grainCanvas, 0, 0);
+    liveCtx.restore();
+  }
+
+  // 6. Vignette (always present for realism)
+  const vig = liveCtx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*0.8);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.35)');
+  liveCtx.fillStyle = vig;
+  liveCtx.fillRect(0, 0, W, H);
+}
+
+/* =====================================================
+   SNAPSHOT RENDERING
+   Applies all effects (noise, blur, exposure) to
+   produce the "photograph" result.
+===================================================== */
+
+/**
+ * renderSnapshot()
+ * Called when the user presses "Snap".
+ * Draws the scene with full photographic effects applied.
+ */
+function renderSnapshot() {
+  const W = snapCanvas.width, H = snapCanvas.height;
+
+  snapCtx.clearRect(0, 0, W, H);
+
+  const exp   = getExposure();
+  const noise  = getNoiseLevel();
+  const { motionBlur, dofBlur } = getBlurAmount();
+  const ltIdx  = parseInt(slLt.value);
+
+  // 1. Draw base scene — model is always rendered via drawBaseScene
+  drawBaseScene(snapCtx);
+
+  // 2. DOF blur — blur background layers only, then restore sharp model on top.
+  //    Same fix as renderLive(): blurring snapCanvas (which contains the model)
+  //    creates a halo around the model edges. Use drawBackground() instead.
+  if (dofBlur > 0 && hasCachedFrame) {
+    const tempBlur = document.createElement('canvas');
+    tempBlur.width = W; tempBlur.height = H;
+    const tempCtx = tempBlur.getContext('2d');
+    tempCtx.filter = `blur(${dofBlur * 0.8}px)`;
+    drawBackground(tempCtx);
+    tempCtx.filter = 'none';
+
+    snapCtx.drawImage(tempBlur, 0, 0);
+    snapCtx.drawImage(frameCache, 0, 0);
+  }
+
+  // 2b. Foreground layer — blurred more than background (closer to camera)
+  const fg = SCENES[currentScene]._fg;
+  if (fg && fg.complete && fg.naturalWidth > 0) {
+    const fw = fg.naturalWidth, fh = fg.naturalHeight;
+    const scale = Math.max(W / fw, H / fh);
+    const fdx = (W - fw * scale) / 2, fdy = (H - fh * scale) / 2;
+    if (dofBlur > 0) {
+      const tempFg = document.createElement('canvas');
+      tempFg.width = W; tempFg.height = H;
+      const tempFgCtx = tempFg.getContext('2d');
+      tempFgCtx.filter = `blur(${dofBlur * 1.2}px)`;
+      tempFgCtx.drawImage(fg, fdx, fdy, fw * scale, fh * scale);
+      tempFgCtx.filter = 'none';
+      snapCtx.drawImage(tempFg, 0, 0);
+    } else {
+      snapCtx.drawImage(fg, fdx, fdy, fw * scale, fh * scale);
+    }
+  }
+
+  // 3. Lighting color overlay
+  if (ltIdx === 0) {
+    snapCtx.fillStyle = 'rgba(5,5,20,0.55)';
+    snapCtx.fillRect(0, 0, W, H);
+  } else if (ltIdx === 1) {
+    snapCtx.fillStyle = 'rgba(10,10,30,0.25)';
+    snapCtx.fillRect(0, 0, W, H);
+  } else if (ltIdx === 2) {
+    snapCtx.fillStyle = 'rgba(160,170,180,0.2)';
+    snapCtx.fillRect(0, 0, W, H);
+  }
+
+  // 3. Exposure effect — cool tint for under, warm blowout for over
+  if (exp < 1) {
+    const darkness = Math.min(0.94, Math.pow(1 - exp, 0.6));
+    snapCtx.fillStyle = `rgba(0,0,8,${darkness})`;
+    snapCtx.fillRect(0, 0, W, H);
+  } else if (exp > 1) {
+    const bright = Math.min(0.93, Math.pow(exp - 1, 0.55) * 0.78);
+    snapCtx.fillStyle = `rgba(255,252,240,${bright})`;
+    snapCtx.fillRect(0, 0, W, H);
+  }
+
+  // 4. Motion blur — 12 samples of the subject layer only (frameCache).
+  //    Background stays sharp; only the moving subject smears across the frame.
+  if (motionBlur > 0 && hasCachedFrame) {
+    const samples = 12;
+    const spread  = motionBlur * 2;
+    snapCtx.save();
+    snapCtx.globalAlpha = 0.12;
+    for (let i = 1; i <= samples; i++) {
+      snapCtx.drawImage(frameCache, Math.round(i * spread / samples), 0);
+    }
+    snapCtx.restore();
+  }
+
+  // 5. ISO noise (grain effect)
+  if (noise > 0) {
+    addGrain(snapCtx, W, H, noise);
+  }
+
+  // 6. Vignette
+  const vig = snapCtx.createRadialGradient(W/2, H/2, H*0.28, W/2, H/2, H*0.78);
+  vig.addColorStop(0,   'rgba(0,0,0,0)');
+  vig.addColorStop(1,   'rgba(0,0,0,0.5)');
+  snapCtx.fillStyle = vig;
+  snapCtx.fillRect(0, 0, W, H);
+
+  // 7. Overexposure "burnt" edge effect
+  if (exp > 2) {
+    const burnGrd = snapCtx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.75);
+    burnGrd.addColorStop(0, 'rgba(255,255,255,0)');
+    burnGrd.addColorStop(1, `rgba(255,255,240,${Math.min(0.7, (exp-2)*0.4)})`);
+    snapCtx.fillStyle = burnGrd;
+    snapCtx.fillRect(0, 0, W, H);
+  }
+}
+
+/**
+ * addGrain(ctx, W, H, amount)
+ * Adds random pixel noise to simulate ISO grain.
+ * amount: 0 (no grain) to 1 (heavy grain)
+ */
+function addGrain(ctx, W, H, amount) {
+  const off    = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const offCtx = off.getContext('2d');
+  const img    = offCtx.createImageData(W, H);
+  const data   = img.data;
+  const size   = Math.max(1, Math.round(1 + amount));
+  for (let y = 0; y < H; y += size) {
+    for (let x = 0; x < W; x += size) {
+      const v = Math.floor(Math.random() * 255);
+      for (let dy = 0; dy < size && y+dy < H; dy++) {
+        for (let dx = 0; dx < size && x+dx < W; dx++) {
+          const i = ((y+dy)*W + (x+dx))*4;
+          data[i] = data[i+1] = data[i+2] = v; data[i+3] = 255;
+        }
+      }
+    }
+  }
+  offCtx.putImageData(img, 0, 0);
+  ctx.save();
+  ctx.globalCompositeOperation = 'soft-light';
+  ctx.globalAlpha = amount * 0.75;
+  ctx.drawImage(off, 0, 0);
+  ctx.restore();
+}
+
+
+/* =====================================================
+   SHOT ANALYSIS
+   After snapping, give a beginner-friendly summary of
+   what happened and why.
+===================================================== */
+
+function analyzeShotResult() {
+  const exp   = getExposure();
+  const noise = getNoiseLevel();
+  const isoIdx = parseInt(slISO.value);
+  const apIdx  = parseInt(slAp.value);
+  const ssIdx  = parseInt(slSS.value);
+  const ltIdx  = parseInt(slLt.value);
+  const { motionBlur, dofBlur } = getBlurAmount();
+
+  const tags = [];
+  const notes = [];
+
+  // Exposure tags
+  if (exp < 0.35) {
+    tags.push({ label: 'Very underexposed', cls: 'tag-bad' });
+    notes.push('The photo is very dark. Try increasing ISO, opening the aperture (lower f-number), or slowing the shutter speed.');
+  } else if (exp < 0.65) {
+    tags.push({ label: 'Underexposed', cls: 'tag-warn' });
+    notes.push('The photo is a bit dark. Increase ISO or use a wider aperture or slower shutter.');
+  } else if (exp <= 1.35) {
+    tags.push({ label: 'Well exposed', cls: 'tag-good' });
+    notes.push('Great exposure! The brightness looks natural and balanced.');
+  } else if (exp <= 1.8) {
+    tags.push({ label: 'Overexposed', cls: 'tag-warn' });
+    notes.push('The photo is a little too bright. Lower the ISO, close the aperture, or use a faster shutter.');
+  } else {
+    tags.push({ label: 'Very overexposed', cls: 'tag-bad' });
+    notes.push('The photo is blown out (too white). Reduce ISO, use a higher f-number, or a much faster shutter.');
+  }
+
+  // Noise tag
+  if (noise > 0.6) {
+    tags.push({ label: 'Heavy grain (ISO ' + ISO_STEPS[isoIdx] + ')', cls: 'tag-bad' });
+    notes.push('High ISO creates noticeable grain. Lower ISO for a cleaner shot when lighting allows.');
+  } else if (noise > 0.2) {
+    tags.push({ label: 'Some grain', cls: 'tag-warn' });
+  } else {
+    tags.push({ label: 'Clean (low noise)', cls: 'tag-good' });
+  }
+
+  // Motion blur
+  if (motionBlur > 10) {
+    tags.push({ label: 'Motion blur', cls: 'tag-warn' });
+    notes.push('Slow shutter speed causes motion blur. Use 1/60s or faster to freeze subjects.');
+  } else if (motionBlur > 0) {
+    tags.push({ label: 'Slight motion blur', cls: 'tag-warn' });
+  } else {
+    tags.push({ label: 'Motion frozen', cls: 'tag-good' });
+  }
+
+  // Depth of field
+  if (dofBlur >= 5) {
+    tags.push({ label: 'Shallow depth of field', cls: 'tag-good' });
+    notes.push('Wide aperture creates a blurred background — great for portraits!');
+  } else if (apIdx >= 4) {
+    tags.push({ label: 'Deep depth of field', cls: 'tag-good' });
+    notes.push('Narrow aperture keeps everything in sharp focus — ideal for landscapes.');
+  }
+
+  return { tags, summary: notes.join(' ') };
+}
+
+
+/* =====================================================
+   UI UPDATE — called whenever any slider moves
+===================================================== */
+
+// Descriptions for each setting as it changes
+const isoTips = [
+  'ISO 100 — minimum sensitivity, cleanest image. Use in bright light.',
+  'ISO 200 — very clean, slightly more sensitive to light.',
+  'ISO 400 — good balance; slight grain in dark areas.',
+  'ISO 800 — noticeable grain. Useful in lower light indoors.',
+  'ISO 1600 — visible grain. For dim conditions.',
+  'ISO 3200 — heavy grain. Emergency low-light use.',
+  'ISO 6400 — maximum sensitivity, very grainy image.'
+];
+const apTips = [
+  'f/2.8 — very wide opening. Lots of light. Separates the subject from the backdrop — the standard choice for studio fashion and portrait work.',
+  'f/4 — wide aperture, soft background blur, good for everyday shots.',
+  'f/5.6 — moderate. Good all-around aperture.',
+  'f/8 — narrow. Sharp background. Classic landscape aperture.',
+  'f/11 — deeper focus. Good for scenes needing sharp foreground and background.',
+  'f/16 — very narrow. Very deep focus. Good in bright sunlight.',
+  'f/22 — minimum opening. Maximum depth of field. Needs bright light.'
+];
+const ssTips = [
+  '1 second — very long exposure. Captures lots of light but blurs any motion.',
+  '1/2s — slow. Motion blur likely for moving subjects.',
+  '1/6s — moderate slow. Handheld camera shake possible.',
+  '1/15s — still slow for action but ok for still subjects.',
+  '1/60s — minimum for handheld shooting without shake.',
+  '1/250s — strobe sync speed. Pairs with studio flash to freeze motion and produce clean, editorial files.',
+  '1/500s — freezes fast motion like running.',
+  '1/1000s — freezes very fast motion like cycling.',
+  '1/4000s — maximum speed. Freezes anything, even splashing water.'
+];
+const ltTips = [
+  'Dim indoors — EV 3. Very little ambient light. You will need high ISO, wide aperture, and a slow shutter to expose correctly.',
+  'Bright indoors — EV 6. Moderate indoor light. Some compensation needed — raise ISO or open the aperture.',
+  'Overcast — EV 9. Soft, diffused natural light. A versatile outdoor shooting condition.',
+  'Studio strobes — EV 11. Controlled flash lighting. Low ISO and strobe sync speed (1/250s) give clean, editorial files.',
+  'Partly cloudy — EV 12. Good natural light with gentle variation. Versatile outdoor conditions.',
+  'Mostly sunny — EV 14. Bright outdoor light. Allows fast shutters and low ISO for clean, sharp results.',
+  'Sunny — EV 16. Maximum natural light. Use a fast shutter or narrow aperture to avoid overexposure.'
+];
+
+function updateUI(changedSlider) {
+  const isoIdx = parseInt(slISO.value);
+  const apIdx  = parseInt(slAp.value);
+  const ssIdx  = parseInt(slSS.value);
+  const ltIdx  = parseInt(slLt.value);
+
+  // Update badges
+  valISO.textContent = 'ISO ' + ISO_STEPS[isoIdx];
+  valAp.textContent  = 'f/' + AP_STEPS[apIdx];
+  valSS.textContent  = SS_LABELS[ssIdx] + 's';
+
+  // Update HUD
+  hudISO.textContent = 'ISO ' + ISO_STEPS[isoIdx];
+  hudAp.textContent  = 'f/' + AP_STEPS[apIdx];
+  hudSS.textContent  = SS_LABELS[ssIdx];
+  hudLt.textContent  = LT_LABELS[ltIdx];
+
+  // Effect description hint
+  if (changedSlider === 'iso') effectDesc.textContent = isoTips[isoIdx];
+  if (changedSlider === 'ap')  effectDesc.textContent = apTips[apIdx];
+  if (changedSlider === 'ss')  effectDesc.textContent = ssTips[ssIdx];
+  if (changedSlider === 'lt')  effectDesc.textContent = ltTips[ltIdx];
+
+  // Motion blur hint — visible when shutter is slow enough to show blur
+  const { motionBlur } = getBlurAmount();
+  const motionHintEl = document.getElementById('motionHint');
+  if (motionBlur > 0) motionHintEl.classList.add('visible');
+  else motionHintEl.classList.remove('visible');
+
+  // EV exposure meter
+  updateEVBar();
+
+  // Re-render the live canvas
+  renderLive();
+}
+
+function updateEVBar() {
+  const dev     = Math.log2(getExposure()) * 5;
+  const clamped = Math.max(-4, Math.min(4, dev));
+  const pct     = 50 + (clamped / 4) * 50;
+
+  document.getElementById('evMarker').style.left = pct + '%';
+
+  const evStatus = document.getElementById('evStatus');
+  const rounded  = Math.round(Math.abs(dev) * 10) / 10;
+
+  if (Math.abs(dev) < 0.5) {
+    evStatus.textContent = 'Balanced';
+    evStatus.className   = 'ev-status correct';
+  } else if (dev < 0) {
+    evStatus.textContent = `Under (−${rounded} stops)`;
+    evStatus.className   = 'ev-status under';
+  } else {
+    evStatus.textContent = `Over (+${rounded} stops)`;
+    evStatus.className   = 'ev-status over';
+  }
+}
+
+/* =====================================================
+   SNAP BUTTON
+   Triggers the camera flash + snapshot render + analysis
+===================================================== */
+
+document.getElementById('btnSnap').addEventListener('click', () => {
+  // 1. Flash effect
+  const flashEl = document.getElementById('flash');
+  flashEl.classList.remove('go');
+  void flashEl.offsetWidth; // force reflow to restart animation
+  flashEl.classList.add('go');
+
+  // 2. Render the snapshot after a tiny delay (flash looks intentional)
+  setTimeout(() => {
+    renderSnapshot();
+
+    // 3. Show the snapshot panel below the viewfinder
+    const snapPanel = document.getElementById('snapPanel');
+    snapPanel.classList.add('visible');
+    snapPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // 4. Run analysis and show result card
+    const { tags, summary } = analyzeShotResult();
+    const resultCard = document.getElementById('resultCard');
+    const resultTags = document.getElementById('resultTags');
+    const resultSummary = document.getElementById('resultSummary');
+
+    resultTags.innerHTML = tags.map(t => `<span class="tag ${t.cls}">${t.label}</span>`).join('');
+    resultSummary.textContent = summary;
+    resultCard.classList.add('visible');
+  }, 120);
+});
+
+/* =====================================================
+   RESET BUTTON
+   Returns all sliders to their defaults
+===================================================== */
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  const d = SCENES[currentScene].defaults;
+  slISO.value = d.iso;
+  slAp.value  = d.ap;
+  slSS.value  = d.ss;
+  slLt.value  = d.lt;
+
+  document.getElementById('snapPanel').classList.remove('visible');
+  document.getElementById('resultCard').classList.remove('visible');
+  effectDesc.textContent = 'Adjust any slider to see how it affects your photo.';
+
+  updateUI(null);
+});
+
+/* =====================================================
+   EVENT LISTENERS — wire up all sliders
+=================================================== */
+slISO.addEventListener('input', () => updateUI('iso'));
+slAp.addEventListener ('input', () => updateUI('ap'));
+slSS.addEventListener ('input', () => updateUI('ss'));
+slLt.addEventListener ('change', () => updateUI('lt'));
+
+/* =====================================================
+   STARTUP
+===================================================== */
+updateUI(null);
+
+// Start the rAF loop when scene 0's background is ready.
+// Other scenes' assets load in the background; the loop is already running by the time the user switches.
+SCENES[0]._bg.onload = () => {
+  const video = SCENES[0]._model;
+  if (video) video.play().catch(() => {});
+  (function loop() {
+    renderLive();
+    requestAnimationFrame(loop);
+  })();
+};
+
+// Scene tab clicks
+document.querySelectorAll('.scene-tab').forEach((tab, i) => {
+  tab.addEventListener('click', () => loadScene(i));
+});
+
+</script>
+</body>
+</html>

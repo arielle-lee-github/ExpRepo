@@ -1,0 +1,7 @@
+# PhotoResource: only push photographic-images.html and Assets/
+PhotoResource/*
+!PhotoResource/photographic-images.html
+!PhotoResource/Assets
+!PhotoResource/Assets/**
+
+.DS_Store
