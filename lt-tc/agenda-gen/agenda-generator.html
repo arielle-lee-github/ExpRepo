@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conference Agenda Grid Generator</title>
+    <!-- Add SheetJS library for Excel functionality -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 84, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #000054;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+        }
+
+        .form-section h2 {
+            color: #000054;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .add-session-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #000054;
+            box-shadow: 0 0 0 3px rgba(0, 0, 84, 0.1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .top-actions {
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .output-actions {
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .output-actions .left-buttons, .output-actions .right-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #000054;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #000040;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .output-section {
+            border-top: 2px solid #e9ecef;
+            padding-top: 30px;
+        }
+
+        .grid-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        #agendaGrid {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            table-layout: fixed;
+        }
+
+        #agendaGrid th {
+            background: #000054;
+            color: white;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 2px solid #ffffff;
+            min-width: 140px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        #agendaGrid th:first-child {
+            text-align: left;
+            min-width: 180px;
+            width: 180px;
+        }
+
+        #agendaGrid td {
+            padding: 10px 8px;
+            border: 2px solid #ffffff;
+            font-size: 0.9rem;
+            vertical-align: top;
+            position: relative;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            background: #f8f9fa;
+        }
+
+        #agendaGrid td:first-child {
+            background: #e9ecef;
+            font-weight: 600;
+            color: #000054;
+            cursor: grab;
+        }
+
+        #agendaGrid th.editable-header {
+            cursor: text;
+            position: relative;
+        }
+
+        .header-input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: center;
+            width: 100%;
+            padding: 2px;
+            outline: none;
+            word-wrap: break-word;
+        }
+
+        .header-input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+
+        .location-input {
+            background: transparent;
+            border: none;
+            color: #000054;
+            font-weight: 600;
+            font-size: 0.9rem;
+            width: 100%;
+            padding: 2px;
+            outline: none;
+            word-wrap: break-word;
+            cursor: grab;
+        }
+
+        .location-input:focus {
+            background: white;
+            border: 1px solid #000054;
+            border-radius: 3px;
+            cursor: text;
+        }
+
+        .editable-cell {
+            min-height: 50px;
+            cursor: text;
+            background: white;
+        }
+
+        .editable-cell:hover {
+            background: #f8f9fa;
+        }
+        
+        #agendaGrid tbody tr.dragging {
+            opacity: 0.5;
+            background: #cce5ff;
+        }
+
+        .drop-indicator-top {
+            border-top: 3px dashed #007bff !important;
+        }
+
+        .drop-indicator-bottom {
+            border-bottom: 3px dashed #007bff !important;
+        }
+
+        .empty-cell .session-inputs input::placeholder {
+            color: transparent;
+            user-select: none;
+        }
+
+        .empty-cell:hover .session-inputs input::placeholder {
+            color: #ced4da;
+        }
+
+        .session-content {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .session-title {
+            font-weight: 600;
+            color: #000054;
+            font-size: 0.9rem;
+            line-height: 1.2;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .session-speaker {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .session-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .session-inputs input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            padding: 2px;
+            font-size: 0.9rem;
+            outline: none;
+            word-wrap: break-word;
+            line-height: 1.2;
+            resize: none;
+        }
+
+        .session-inputs input:focus {
+            background: white;
+            border: 1px solid #000054;
+            border-radius: 3px;
+        }
+
+        .session-inputs input:first-child {
+            font-weight: 600;
+            color: #000054;
+        }
+
+        .session-inputs input:last-child {
+            font-style: italic;
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+
+        .session-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 3px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .editable-cell:hover .session-actions {
+            opacity: 1;
+        }
+
+        .action-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .delete-icon {
+            background: #dc3545;
+            color: white;
+        }
+
+        .delete-icon:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+
+        .edit-icon {
+            background: #007bff;
+            color: white;
+        }
+
+        .edit-icon:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+
+        .save-icon {
+            background: #28a745;
+            color: white;
+        }
+
+        .save-icon:hover {
+            background: #218838;
+            transform: scale(1.1);
+        }
+
+        .cancel-icon {
+            background: #6c757d;
+            color: white;
+        }
+
+        .cancel-icon:hover {
+            background: #545b62;
+            transform: scale(1.1);
+        }
+
+        .edit-mode {
+            background: #fff3cd !important;
+            border: 2px solid #ffc107 !important;
+        }
+
+        .edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 5px;
+        }
+
+        .edit-form input, .edit-form select {
+            width: 100%;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+        .edit-form label {
+            font-size: 0.7rem;
+            color: #666;
+            margin-bottom: 2px;
+        }
+
+        .powerpoint-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            table-layout: fixed;
+        }
+
+        .powerpoint-table th {
+            background-color: #000054;
+            color: white;
+            border: 2px solid white;
+            padding: 10px 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11pt;
+            vertical-align: middle;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            min-width: 140px;
+        }
+
+        .powerpoint-table th:first-child {
+            text-align: left;
+            min-width: 180px;
+            width: 180px;
+        }
+
+        .powerpoint-table td {
+            border: 2px solid white;
+            padding: 8px;
+            vertical-align: top;
+            font-size: 10pt;
+            background-color: #f8f9fa;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            line-height: 1.3;
+        }
+
+        .powerpoint-table td:first-child {
+            background-color: #e9ecef;
+            font-weight: bold;
+            color: #000054;
+        }
+
+        .powerpoint-session-title {
+            font-weight: bold;
+            color: #000054;
+            margin-bottom: 3px;
+            line-height: 1.2;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+
+        .powerpoint-session-speaker {
+            font-style: italic;
+            color: #666666;
+            font-size: 9pt;
+            line-height: 1.2;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+
+        .copy-instructions {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #000054;
+            margin-top: 20px;
+        }
+
+        .copy-instructions h3 {
+            color: #000054;
+            margin-bottom: 10px;
+        }
+
+        .copy-instructions p {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .add-session-grid {
+                grid-template-columns: 1fr;
+            }
+            .btn-group {
+                flex-direction: column;
+            }
+            .content {
+                padding: 20px;
+            }
+            .header {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Conference Agenda Grid</h1>
+            <p>Create professional grid-based conference schedules showing concurrent sessions</p>
+        </div>
+        <div class="content">
+            <div class="form-section">
+                <h2>Add / Update a Session</h2>
+                <div class="add-session-grid">
+                    <div class="input-group">
+                        <label for="newTimeSlotInput">Time Slot</label>
+                        <input type="text" id="newTimeSlotInput" list="timeSlotDatalist" placeholder="e.g., 9:00 AM - 10:00 AM">
+                        <datalist id="timeSlotDatalist"></datalist>
+                    </div>
+                    <div class="input-group">
+                        <label for="newLocationInput">Location</label>
+                        <input type="text" id="newLocationInput" list="locationDatalist" placeholder="e.g., Main Auditorium">
+                        <datalist id="locationDatalist"></datalist>
+                    </div>
+                    <div class="input-group">
+                        <label for="newSessionTitleInput">Session Title</label>
+                        <input type="text" id="newSessionTitleInput" placeholder="e.g., Machine Learning Workshop">
+                    </div>
+                    <div class="input-group">
+                        <label for="newSpeakerInput">Speaker (Optional)</label>
+                        <input type="text" id="newSpeakerInput" placeholder="e.g., Dr. Sarah Chen" onkeypress="handleAddSessionEnter(event)">
+                    </div>
+                </div>
+                <div class="btn-group top-actions">
+                    <button class="btn btn-primary" onclick="addSession()">Add Session to Grid</button>
+                    <input type="file" id="excelUpload" onchange="loadFromExcel(event)" accept=".xlsx, .xls" style="display: none;">
+                    <label for="excelUpload" class="btn btn-secondary">⬆️ Load from Excel</label>
+                </div>
+            </div>
+            <div class="output-section">
+                <h2>Conference Schedule Grid</h2>
+                <div class="grid-container">
+                    <table id="agendaGrid">
+                        <thead id="gridHeader"></thead>
+                        <tbody id="gridBody"></tbody>
+                    </table>
+                </div>
+                <div class="btn-group output-actions">
+                    <div class="left-buttons">
+                        <button class="btn btn-success" onclick="copyGrid()">📋 Copy Grid for PowerPoint</button>
+                        <button class="btn btn-success" onclick="downloadAsExcel()">⬇️ Download as Excel</button>
+                    </div>
+                    <div class="right-buttons">
+                        <button class="btn btn-secondary" onclick="loadSampleData()">Load Sample Data</button>
+                        <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+                    </div>
+                </div>
+                <div class="copy-instructions">
+                    <h3>How to use in PowerPoint:</h3>
+                    <p>1. Click "Copy Grid for PowerPoint" above<br>
+                        2. Open PowerPoint and go to your slide<br>
+                        3. Press Ctrl+V (or Cmd+V on Mac) to paste<br>
+                        4. The grid will appear with full formatting preserved, perfect for showing concurrent sessions!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let timeSlots = [];
+        let locations = [];
+        let sessions = {};
+        let draggedItem = null;
+
+        window.onload = generateGrid;
+
+        function handleAddSessionEnter(event) {
+            if (event.key === 'Enter') addSession();
+        }
+
+        function addSession() {
+            const timeInput = document.getElementById('newTimeSlotInput');
+            const locationInput = document.getElementById('newLocationInput');
+            const titleInput = document.getElementById('newSessionTitleInput');
+            const speakerInput = document.getElementById('newSpeakerInput');
+            const timeValue = timeInput.value.trim();
+            const locationValue = locationInput.value.trim();
+            const titleValue = titleInput.value.trim();
+            const speakerValue = speakerInput.value.trim();
+
+            if (!timeValue || !locationValue || !titleValue) {
+                alert('Please provide at least a Time Slot, Location, and Session Title.');
+                return;
+            }
+
+            if (!timeSlots.includes(timeValue)) timeSlots.push(timeValue);
+            if (!locations.includes(locationValue)) locations.push(locationValue);
+
+            updateSession(timeValue, locationValue, titleValue, speakerValue);
+            generateGrid();
+
+            titleInput.value = '';
+            speakerInput.value = '';
+            titleInput.focus();
+        }
+
+        function updateDatalists() {
+            const timeDatalist = document.getElementById('timeSlotDatalist');
+            const locationDatalist = document.getElementById('locationDatalist');
+            timeDatalist.innerHTML = '';
+            locationDatalist.innerHTML = '';
+
+            const sortedTimeSlots = [...timeSlots].sort((a, b) => parseTime(a) - parseTime(b));
+            sortedTimeSlots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot;
+                timeDatalist.appendChild(option);
+            });
+
+            const sortedLocations = [...locations].sort();
+            sortedLocations.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc;
+                locationDatalist.appendChild(option);
+            });
+        }
+
+        function parseTime(timeStr) {
+            try {
+                const startTimeStr = timeStr.split('-')[0].trim();
+                const match = startTimeStr.match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)/i);
+                if (!match) return timeStr;
+
+                let hours = parseInt(match[1], 10);
+                const minutes = match[2] ? parseInt(match[2], 10) : 0;
+                const modifier = match[3].toUpperCase();
+
+                if (modifier === 'PM' && hours !== 12) hours += 12;
+                if (modifier === 'AM' && hours === 12) hours = 0;
+                return hours * 60 + minutes;
+            } catch (e) {
+                return timeStr;
+            }
+        }
+
+        function generateGrid() {
+            const header = document.getElementById('gridHeader');
+            const body = document.getElementById('gridBody');
+            header.innerHTML = '';
+            body.innerHTML = '';
+
+            const usedTimeSlots = new Set();
+            const usedLocations = new Set();
+            Object.keys(sessions).forEach(key => {
+                const [time, loc] = key.split('|');
+                if (time && loc) {
+                    usedTimeSlots.add(time);
+                    usedLocations.add(loc);
+                }
+            });
+
+            if (usedLocations.size === 0 || usedTimeSlots.size === 0) {
+                updateDatalists();
+                return;
+            }
+
+            const displayTimeSlots = Array.from(usedTimeSlots).sort((a, b) => parseTime(a) - parseTime(b));
+            const displayLocations = locations.filter(loc => usedLocations.has(loc));
+
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th>Time / Location</th>';
+            displayTimeSlots.forEach((slot) => {
+                const th = document.createElement('th');
+                th.className = 'editable-header';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'header-input';
+                input.value = slot;
+                const originalSlotIndex = timeSlots.indexOf(slot);
+                input.onchange = function() {
+                    updateTimeSlot(originalSlotIndex, this.value);
+                };
+                input.onblur = function() {
+                    if (this.value.trim() === '') this.value = timeSlots[originalSlotIndex];
+                };
+                th.appendChild(input);
+                headerRow.appendChild(th);
+            });
+            header.appendChild(headerRow);
+
+            displayLocations.forEach((location) => {
+                const row = document.createElement('tr');
+                row.draggable = true;
+                row.dataset.location = location;
+
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('dragleave', handleDragLeave);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+
+                const locationCell = document.createElement('td');
+                const locationInput = document.createElement('input');
+                locationInput.type = 'text';
+                locationInput.className = 'location-input';
+                locationInput.value = location;
+                const originalLocationIndex = locations.indexOf(location);
+                locationInput.onchange = function() {
+                    updateLocation(originalLocationIndex, this.value);
+                };
+                locationInput.onblur = function() {
+                    if (this.value.trim() === '') this.value = locations[originalLocationIndex];
+                };
+                locationCell.appendChild(locationInput);
+                row.appendChild(locationCell);
+
+                displayTimeSlots.forEach(timeSlot => {
+                    const sessionKey = `${timeSlot}|${location}`;
+                    const sessionData = sessions[sessionKey] || {
+                        title: '',
+                        speaker: ''
+                    };
+                    const cell = document.createElement('td');
+                    cell.className = 'editable-cell';
+                    if (!sessionData.title && !sessionData.speaker) cell.classList.add('empty-cell');
+                    cell.style.position = 'relative';
+
+                    if (sessionData.title || sessionData.speaker) {
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'session-actions';
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'action-icon delete-icon';
+                        deleteBtn.innerHTML = '×';
+                        deleteBtn.title = 'Delete session';
+                        deleteBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            deleteSession(timeSlot, location);
+                        };
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'action-icon edit-icon';
+                        editBtn.innerHTML = '✎';
+                        editBtn.title = 'Edit session';
+                        editBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            editSession(cell, timeSlot, location, sessionData);
+                        };
+                        actionsDiv.appendChild(editBtn);
+                        actionsDiv.appendChild(deleteBtn);
+                        cell.appendChild(actionsDiv);
+                    }
+
+                    const sessionDiv = document.createElement('div');
+                    sessionDiv.className = 'session-inputs';
+                    const titleInput = document.createElement('input');
+                    const speakerInput = document.createElement('input');
+                    titleInput.type = 'text';
+                    titleInput.value = sessionData.title || '';
+                    titleInput.placeholder = 'Session title';
+                    titleInput.onchange = function() {
+                        updateSession(timeSlot, location, this.value, speakerInput.value);
+                        generateGrid();
+                    };
+                    speakerInput.type = 'text';
+                    speakerInput.value = sessionData.speaker || '';
+                    speakerInput.placeholder = 'Speaker name';
+                    speakerInput.onchange = function() {
+                        updateSession(timeSlot, location, titleInput.value, this.value);
+                        generateGrid();
+                    };
+                    sessionDiv.appendChild(titleInput);
+                    sessionDiv.appendChild(speakerInput);
+                    cell.appendChild(sessionDiv);
+                    row.appendChild(cell);
+                });
+                body.appendChild(row);
+            });
+            updateDatalists();
+        }
+
+        function handleDragStart(e) {
+            draggedItem = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.dataset.location);
+            setTimeout(() => {
+                this.classList.add('dragging');
+            }, 0);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const targetRow = e.target.closest('tr');
+            if (!targetRow || targetRow === draggedItem) return;
+            document.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom').forEach(el => el.classList.remove('drop-indicator-top', 'drop-indicator-bottom'));
+            const rect = targetRow.getBoundingClientRect();
+            targetRow.classList.add(e.clientY < rect.top + rect.height / 2 ? 'drop-indicator-top' : 'drop-indicator-bottom');
+        }
+
+        function handleDragLeave(e) {
+            const targetRow = e.target.closest('tr');
+            if (targetRow) targetRow.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const targetRow = e.target.closest('tr');
+            if (!targetRow || targetRow === draggedItem) return;
+
+            const sourceLocation = e.dataTransfer.getData('text/plain');
+            const targetLocation = targetRow.dataset.location;
+            const sourceIndex = locations.indexOf(sourceLocation);
+            const [movedItem] = locations.splice(sourceIndex, 1);
+            const newTargetIndex = locations.indexOf(targetLocation);
+            const rect = targetRow.getBoundingClientRect();
+            locations.splice(e.clientY < rect.top + rect.height / 2 ? newTargetIndex : newTargetIndex + 1, 0, movedItem);
+            generateGrid();
+        }
+
+        function handleDragEnd(e) {
+            document.querySelectorAll('.dragging, .drop-indicator-top, .drop-indicator-bottom').forEach(el => el.classList.remove('dragging', 'drop-indicator-top', 'drop-indicator-bottom'));
+        }
+
+        function updateTimeSlot(index, newValue) {
+            const oldValue = timeSlots[index];
+            const trimmedValue = newValue.trim();
+            if (trimmedValue && trimmedValue !== oldValue) {
+                timeSlots[index] = trimmedValue;
+                const updatedSessions = {};
+                Object.keys(sessions).forEach(key => {
+                    const [keyTime, location] = key.split('|');
+                    updatedSessions[keyTime === oldValue ? `${trimmedValue}|${location}` : key] = sessions[key];
+                });
+                sessions = updatedSessions;
+                generateGrid();
+            }
+        }
+
+        function updateLocation(index, newValue) {
+            const oldValue = locations[index];
+            const trimmedValue = newValue.trim();
+            if (!trimmedValue || trimmedValue === oldValue) return;
+
+            const isDuplicate = locations.some((loc, i) => i !== index && loc === trimmedValue);
+
+            if (isDuplicate) {
+                Object.keys(sessions).forEach(key => {
+                    const [time, loc] = key.split('|');
+                    if (loc === oldValue) {
+                        const newKey = `${time}|${trimmedValue}`;
+                        if (!sessions[newKey]) {
+                            sessions[newKey] = sessions[key];
+                        }
+                        delete sessions[key];
+                    }
+                });
+                locations.splice(index, 1);
+            } else {
+                locations[index] = trimmedValue;
+                const updatedSessions = {};
+                Object.keys(sessions).forEach(key => {
+                    const [time, loc] = key.split('|');
+                    updatedSessions[loc === oldValue ? `${time}|${trimmedValue}` : key] = sessions[key];
+                });
+                sessions = updatedSessions;
+            }
+            generateGrid();
+        }
+
+        function updateSession(timeSlot, location, title, speaker) {
+            const sessionKey = `${timeSlot}|${location}`;
+            if (title.trim() || speaker.trim()) sessions[sessionKey] = {
+                title: title.trim(),
+                speaker: speaker.trim()
+            };
+            else delete sessions[sessionKey];
+        }
+
+        function loadSampleData() {
+            timeSlots = ['9:00 AM - 10:00 AM', '10:15 AM - 11:15 AM', '11:30 AM - 12:30 PM', '1:30 PM - 2:30 PM', '2:45 PM - 3:45 PM'];
+            locations = ['Main Auditorium', 'Room A', 'Room B', 'Workshop Room', 'Lab 1'];
+            sessions = {
+                '9:00 AM - 10:00 AM|Main Auditorium': { title: 'Opening Keynote: Future of AI', speaker: 'Dr. Sarah Chen' },
+                '10:15 AM - 11:15 AM|Main Auditorium': { title: 'Panel: Ethics in Technology', speaker: 'Dr. Sarah Chen' },
+                '10:15 AM - 11:15 AM|Room A': { title: 'Machine Learning Fundamentals', speaker: 'Prof. Michael Torres' },
+                '10:15 AM - 11:15 AM|Room B': { title: 'Data Science Workshop', speaker: 'Dr. Lisa Wang' },
+                '11:30 AM - 12:30 PM|Room A': { title: 'Deep Learning Applications', speaker: 'Prof. Michael Torres' },
+                '11:30 AM - 12:30 PM|Room B': { title: 'Statistical Analysis', speaker: 'Dr. Lisa Wang' },
+                '11:30 AM - 12:30 PM|Workshop Room': { title: 'Hands-on Python', speaker: 'James Rodriguez' },
+                '1:30 PM - 2:30 PM|Main Auditorium': { title: 'Industry Trends', speaker: 'Dr. Sarah Chen' },
+                '1:30 PM - 2:30 PM|Lab 1': { title: 'Research Methodology', speaker: 'Dr. Ahmed Hassan' },
+                '2:45 PM - 3:45 PM|Main Auditorium': { title: 'Closing Remarks', speaker: 'Dr. Sarah Chen' }
+            };
+            generateGrid();
+        }
+
+        function clearAll() {
+            timeSlots = [];
+            locations = [];
+            sessions = {};
+            document.getElementById('newTimeSlotInput').value = '';
+            document.getElementById('newLocationInput').value = '';
+            document.getElementById('newSessionTitleInput').value = '';
+            document.getElementById('newSpeakerInput').value = '';
+            generateGrid();
+        }
+
+        function deleteSession(timeSlot, location) {
+            delete sessions[`${timeSlot}|${location}`];
+            generateGrid();
+        }
+        
+        function loadFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json.length === 0) {
+                        alert("The selected Excel sheet is empty.");
+                        return;
+                    }
+                    
+                    clearAll();
+                    
+                    json.forEach(row => {
+                        const timeKey = Object.keys(row).find(k => k.toLowerCase() === 'time slot');
+                        const locKey = Object.keys(row).find(k => k.toLowerCase() === 'location');
+                        const titleKey = Object.keys(row).find(k => k.toLowerCase() === 'session title');
+                        const speakerKey = Object.keys(row).find(k => k.toLowerCase() === 'speaker');
+
+                        if (row[timeKey] && row[locKey] && row[titleKey]) {
+                            const time = String(row[timeKey]).trim();
+                            const location = String(row[locKey]).trim();
+                            const title = String(row[titleKey]).trim();
+                            const speaker = row[speakerKey] ? String(row[speakerKey]).trim() : '';
+
+                            if (!timeSlots.includes(time)) timeSlots.push(time);
+                            if (!locations.includes(location)) locations.push(location);
+                            updateSession(time, location, title, speaker);
+                        }
+                    });
+
+                    generateGrid();
+                    alert("Data loaded successfully!");
+
+                } catch (error) {
+                    console.error("Error processing Excel file:", error);
+                    alert("Could not process the Excel file. Please ensure it is a valid .xlsx or .xls file and the first sheet contains the data with columns 'Time Slot', 'Location', and 'Session Title'.");
+                } finally {
+                    event.target.value = null;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function downloadAsExcel() {
+            if (Object.keys(sessions).length === 0) {
+                alert("There is no data to download.");
+                return;
+            }
+            
+            // Create a flat list of sessions for export
+            const dataForExcel = [];
+            dataForExcel.push(['Time Slot', 'Location', 'Session Title', 'Speaker']); // Add headers
+            
+            // Get all sessions and sort them
+            const sortedSessionKeys = Object.keys(sessions).sort((a, b) => {
+                const [timeA, locA] = a.split('|');
+                const [timeB, locB] = b.split('|');
+                const timeCompare = parseTime(timeA) - parseTime(timeB);
+                if (timeCompare !== 0) return timeCompare;
+                return locA.localeCompare(locB); // Sort by location if times are the same
+            });
+
+            sortedSessionKeys.forEach(key => {
+                const [time, location] = key.split('|');
+                const session = sessions[key];
+                dataForExcel.push([
+                    time,
+                    location,
+                    session.title || '',
+                    session.speaker || ''
+                ]);
+            });
+
+            const worksheet = XLSX.utils.aoa_to_sheet(dataForExcel);
+            
+            // Set column widths for better readability
+            worksheet['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 40 }, { wch: 25 }];
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Agenda');
+
+            XLSX.writeFile(workbook, 'Conference_Agenda_List.xlsx');
+        }
+
+        function copyGrid() {
+            const cleanGrid = createPowerPointTable();
+            if (!cleanGrid) {
+                alert("There is no grid data to copy.");
+                return;
+            }
+            const container = document.querySelector('.grid-container');
+            container.appendChild(cleanGrid);
+            const range = document.createRange();
+            range.selectNode(cleanGrid);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            try {
+                document.execCommand('copy');
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 2000);
+            } catch (err) {
+                alert('Copy failed. Please select the grid manually and copy with Ctrl+C');
+            }
+            window.getSelection().removeAllRanges();
+            container.removeChild(cleanGrid);
+        }
+
+        function createPowerPointTable() {
+            const usedTimeSlots = new Set();
+            const usedLocations = new Set();
+            Object.keys(sessions).forEach(key => {
+                const [time, loc] = key.split('|');
+                if (time && loc) {
+                    usedTimeSlots.add(time);
+                    usedLocations.add(loc);
+                }
+            });
+            if (usedLocations.size === 0 || usedTimeSlots.size === 0) return null;
+
+            const displayTimeSlots = Array.from(usedTimeSlots).sort((a, b) => parseTime(a) - parseTime(b));
+            const displayLocations = locations.filter(loc => usedLocations.has(loc));
+
+            const table = document.createElement('table');
+            table.className = 'powerpoint-table';
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            const locationHeader = document.createElement('th');
+            locationHeader.textContent = 'Time / Location';
+            headerRow.appendChild(locationHeader);
+            displayTimeSlots.forEach(timeSlot => {
+                const th = document.createElement('th');
+                th.textContent = timeSlot;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            displayLocations.forEach(location => {
+                const row = document.createElement('tr');
+                const locationCell = document.createElement('td');
+                locationCell.textContent = location;
+                row.appendChild(locationCell);
+                displayTimeSlots.forEach(timeSlot => {
+                    const sessionKey = `${timeSlot}|${location}`;
+                    const sessionData = sessions[sessionKey] || {};
+                    const cell = document.createElement('td');
+                    if (sessionData.title) {
+                        const titleDiv = document.createElement('div');
+                        titleDiv.className = 'powerpoint-session-title';
+                        titleDiv.textContent = sessionData.title;
+                        cell.appendChild(titleDiv);
+                    }
+                    if (sessionData.speaker) {
+                        const speakerDiv = document.createElement('div');
+                        speakerDiv.className = 'powerpoint-session-speaker';
+                        speakerDiv.textContent = sessionData.speaker;
+                        cell.appendChild(speakerDiv);
+                    }
+                    row.appendChild(cell);
+                });
+                tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
+            return table;
+        }
+
+        function editSession(cell, currentTimeSlot, currentLocation, sessionData) {
+            const originalContent = cell.innerHTML;
+            cell.classList.add('edit-mode');
+            const editForm = document.createElement('div');
+            editForm.className = 'edit-form';
+
+            const timeLabel = document.createElement('label');
+            timeLabel.textContent = 'Time Slot:';
+            const timeSelect = document.createElement('select');
+            const sortedTimeSlots = [...timeSlots].sort((a, b) => parseTime(a) - parseTime(b));
+            sortedTimeSlots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot;
+                option.textContent = slot;
+                option.selected = slot === currentTimeSlot;
+                timeSelect.appendChild(option);
+            });
+
+            const locationLabel = document.createElement('label');
+            locationLabel.textContent = 'Location:';
+            const locationSelect = document.createElement('select');
+            const sortedLocations = [...locations].sort();
+            sortedLocations.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc;
+                option.textContent = loc;
+                option.selected = loc === currentLocation;
+                locationSelect.appendChild(option);
+            });
+
+            const titleLabel = document.createElement('label');
+            titleLabel.textContent = 'Session Title:';
+            const titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.value = sessionData.title || '';
+            titleInput.placeholder = 'Session title';
+
+            const speakerLabel = document.createElement('label');
+            speakerLabel.textContent = 'Speaker:';
+            const speakerInput = document.createElement('input');
+            speakerInput.type = 'text';
+            speakerInput.value = sessionData.speaker || '';
+            speakerInput.placeholder = 'Speaker name';
+
+            const buttonDiv = document.createElement('div');
+            buttonDiv.style.display = 'flex';
+            buttonDiv.style.gap = '5px';
+            buttonDiv.style.marginTop = '5px';
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'action-icon save-icon';
+            saveBtn.innerHTML = '✓';
+            saveBtn.title = 'Save changes';
+            saveBtn.onclick = function(e) {
+                e.stopPropagation();
+                saveSessionEdit(currentTimeSlot, currentLocation, timeSelect.value, locationSelect.value, titleInput.value, speakerInput.value);
+            };
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'action-icon cancel-icon';
+            cancelBtn.innerHTML = '✗';
+            cancelBtn.title = 'Cancel edit';
+            cancelBtn.onclick = function(e) {
+                e.stopPropagation();
+                cell.innerHTML = originalContent;
+                cell.classList.remove('edit-mode');
+                generateGrid();
+            };
+
+            buttonDiv.appendChild(saveBtn);
+            buttonDiv.appendChild(cancelBtn);
+            editForm.appendChild(timeLabel);
+            editForm.appendChild(timeSelect);
+            editForm.appendChild(locationLabel);
+            editForm.appendChild(locationSelect);
+            editForm.appendChild(titleLabel);
+            editForm.appendChild(titleInput);
+            editForm.appendChild(speakerLabel);
+            editForm.appendChild(speakerInput);
+            editForm.appendChild(buttonDiv);
+            cell.innerHTML = '';
+            cell.appendChild(editForm);
+        }
+
+        function saveSessionEdit(oldTimeSlot, oldLocation, newTimeSlot, newLocation, title, speaker) {
+            delete sessions[`${oldTimeSlot}|${oldLocation}`];
+            if (title.trim() || speaker.trim()) {
+                sessions[`${newTimeSlot}|${newLocation}`] = {
+                    title: title.trim(),
+                    speaker: speaker.trim()
+                };
+            }
+            if (!timeSlots.includes(newTimeSlot)) timeSlots.push(newTimeSlot);
+            if (!locations.includes(newLocation)) locations.push(newLocation);
+            generateGrid();
+        }
+    </script>
+</body>
+</html>
