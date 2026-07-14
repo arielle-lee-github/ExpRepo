@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swiss Poster Tool</title>
+<style id="appcss">
+  /* ============ App chrome ============ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #e8e8e6;
+    display: flex;
+    overflow: hidden;
+  }
+
+  #sidebar {
+    width: 300px;
+    min-width: 300px;
+    height: 100vh;
+    overflow-y: auto;
+    background: #1a1a1a;
+    color: #eee;
+    padding: 20px 18px 60px;
+  }
+  #sidebar h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  #sidebar .sub {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 18px;
+  }
+  #sidebar section { margin-bottom: 14px; }
+  #sidebar h2 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #sidebar h2:hover { color: #ccc; }
+  #sidebar h2::after { content: "\25be"; color: #666; }
+  #sidebar section.collapsed h2 { margin-bottom: 0; }
+  #sidebar section.collapsed h2::after { content: "\25b8"; }
+  #sidebar section.collapsed > *:not(h2) { display: none !important; }
+  #sidebar label {
+    display: block;
+    font-size: 11px;
+    color: #bbb;
+    margin: 10px 0 3px;
+  }
+  #sidebar input[type="text"], #sidebar textarea {
+    width: 100%;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #eee;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 3px;
+  }
+  #sidebar textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
+  #sidebar input:focus, #sidebar textarea:focus { outline: 1px solid #d32027; }
+
+  .canvas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .canvas-grid button {
+    background: #2a2a2a;
+    border: 2px solid #3a3a3a;
+    border-radius: 3px;
+    color: #ccc;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 4px 6px;
+    cursor: pointer;
+    line-height: 1.3;
+  }
+  .canvas-grid button small {
+    display: block;
+    font-size: 9px;
+    font-weight: 400;
+    color: #888;
+  }
+  .canvas-grid button.active { border-color: #d32027; color: #fff; }
+
+  .divider { border-top: 1px solid #333; margin: 12px 0 2px; }
+
+  .layout-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .layout-thumb {
+    aspect-ratio: 1 / 1.414;
+    background: #fff;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    padding: 0;
+    overflow: hidden;
+  }
+  .layout-thumb.active { border-color: #d32027; }
+  .layout-thumb svg { display: block; width: 100%; height: 100%; }
+  .layout-thumb span {
+    position: absolute;
+    bottom: 1px;
+    left: 0;
+    right: 0;
+    font-size: 7px;
+    text-align: center;
+    color: #555;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Per-content type controls: scale slider + alignment buttons */
+  .typerow { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .typerow input[type="range"] { flex: 1; min-width: 0; }
+  .typerow .tval {
+    font-size: 10px;
+    color: #777;
+    width: 26px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .alignbtns { display: flex; gap: 2px; flex: none; }
+  .alignbtns button {
+    width: 22px;
+    height: 20px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 2px;
+    color: #bbb;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+  .alignbtns button.active { background: #d32027; border-color: #d32027; color: #fff; }
+  .alignbtns button svg {
+    width: 12px;
+    height: 12px;
+    display: block;
+    margin: 0 auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+  }
+
+  /* Footer text/image mode toggle */
+  .modeseg { display: flex; gap: 2px; margin: 2px 0 4px; }
+  .modeseg button {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 2px;
+    color: #bbb;
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  .modeseg button.active { background: #d32027; border-color: #d32027; color: #fff; }
+
+  /* Upload + clear button pairs */
+  .uplrow { display: flex; gap: 6px; }
+  .uplrow .btn { flex: 1; }
+  .uplrow .btn.x { flex: 0 0 34px; }
+
+  /* uploaded-image preview row */
+  .imgpreview { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .imgpreview img {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid #3a3a3a;
+    flex: none;
+  }
+  .imgpreview .spacer { flex: 1; }
+  .imgpreview .btn.x { flex: 0 0 34px; margin-top: 0; }
+
+  .shape-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+  .shape-btn {
+    width: 38px;
+    height: 53px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    background: #2a2a2a;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .shape-btn.active { border-color: #d32027; }
+  .shape-btn svg { display: block; width: 100%; height: 100%; }
+
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 3px;
+    border: 2px solid #4a4a4a;
+    cursor: pointer;
+    padding: 0;
+  }
+  .swatch.active { border-color: #d32027; }
+  .colorrow { display: flex; align-items: center; gap: 8px; }
+  .colorrow input[type="color"] {
+    width: 34px; height: 26px;
+    border: none; background: none; cursor: pointer; padding: 0;
+  }
+  .colorrow span { font-size: 11px; color: #bbb; }
+
+  .checkrow { display: flex; align-items: center; gap: 7px; margin: 8px 0 0; }
+  .checkrow input { accent-color: #d32027; }
+  .checkrow label { margin: 0 !important; cursor: pointer; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #eee;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 9px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+  .btn:hover { background: #3a3a3a; }
+  .btn.primary { background: #d32027; border-color: #d32027; }
+  .btn.primary:hover { background: #b81b21; }
+
+  select.ctrl {
+    width: 100%;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #eee;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 6px;
+    border-radius: 3px;
+  }
+  input[type="range"] { width: 100%; accent-color: #d32027; }
+  .val { color: #777; float: right; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 10px; color: #777; margin-top: 6px; line-height: 1.5; }
+
+  /* ============ Export toolbar (right edge) ============ */
+  #toolbar {
+    position: fixed;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 60;
+  }
+  #toolbar button {
+    width: 44px;
+    height: 44px;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #ddd;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #toolbar button:hover { background: #2e2e2e; border-color: #555; }
+  #toolbar button.primary { background: #d32027; border-color: #d32027; color: #fff; }
+  #toolbar button.primary:hover { background: #b81b21; }
+  #toolbar svg { width: 20px; height: 20px; }
+
+  /* ============ Layout category tabs ============ */
+  .cat-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .cat-tabs button {
+    flex: 1;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    color: #bbb;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 6px 2px;
+    cursor: pointer;
+  }
+  .cat-tabs button.active { background: #d32027; border-color: #d32027; color: #fff; }
+
+  /* ============ Image editor modal ============ */
+  #editorOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  #editorOverlay.open { display: flex; }
+  #editorPanel {
+    background: #1f1f1f;
+    color: #eee;
+    border-radius: 8px;
+    padding: 18px;
+    width: 500px;
+    max-width: 94vw;
+  }
+  #editorPanel h3 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  #editorViewport {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    margin: 0 auto;
+    cursor: grab;
+    touch-action: none;
+  }
+  #editorViewport.dragging { cursor: grabbing; }
+  #editorViewport img {
+    position: absolute;
+    max-width: none;
+    pointer-events: none;
+    user-select: none;
+  }
+  .editor-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .editor-row > label { font-size: 11px; color: #bbb; flex: 0 0 46px; }
+  .editor-row input[type="range"] { flex: 1; }
+  .editor-row select { flex: 1; }
+  .editor-row.btns { justify-content: flex-end; }
+  .editor-row.btns .btn { width: auto; margin-top: 0; padding: 8px 18px; }
+
+  /* ============ Stage ============ */
+  #stage {
+    flex: 1;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  #posterScaler { transform-origin: center center; }
+
+  /* ============ Poster ============ */
+  /* Fixed A4 @96dpi: 794 x 1123. All type sizes are tuned to this canvas. */
+  #poster {
+    width: 794px;
+    height: 1123px;
+    background: var(--bg, #ffffff);
+    color: var(--ink, #000000);
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: repeat(16, 1fr);
+    gap: 12px;
+    padding: 44px;
+    font-family: var(--font, "Helvetica Neue", Helvetica, Arial, sans-serif);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.25);
+    overflow: hidden;
+    /* --ls: extra letter-spacing added to each block's default tracking;
+       --lh: multiplier on each block's default line-height */
+  }
+  #poster.inverse { color: #fff; }
+
+  .block { position: relative; z-index: 2; min-width: 0; min-height: 0; }
+  .block[contenteditable]:hover { outline: 1px dashed rgba(211,32,39,0.5); }
+  .block[contenteditable]:focus { outline: 1px solid rgba(211,32,39,0.8); }
+
+  /* Type blocks. --fs-<block> are per-content scale multipliers. */
+  .b-kicker {
+    font-size: calc(47px * var(--fs-kicker, 1));
+    line-height: calc(1.18 * var(--lh, 1));
+    font-weight: 400;
+    letter-spacing: calc(-0.01em + var(--ls, 0em));
+    white-space: pre-line;
+  }
+  .b-title {
+    font-size: calc(75px * var(--fs-title, 1));
+    line-height: calc(0.98 * var(--lh, 1));
+    font-weight: 700;
+    letter-spacing: calc(-0.03em + var(--ls, 0em));
+    white-space: pre-line;
+  }
+  .b-title.xxl { font-size: calc(148px * var(--fs-title, 1)); letter-spacing: calc(-0.04em + var(--ls, 0em)); }
+  .b-title.xl  { font-size: calc(128px * var(--fs-title, 1)); }
+  .b-title.sm  { font-size: calc(47px * var(--fs-title, 1)); }
+  .b-kicker.sm { font-size: calc(28px * var(--fs-kicker, 1)); }
+  .b-kicker.lg { font-size: calc(80px * var(--fs-kicker, 1)); }
+  .b-date {
+    font-size: calc(75px * var(--fs-date, 1));
+    line-height: calc(1.12 * var(--lh, 1));
+    font-weight: 700;
+    letter-spacing: calc(-0.02em + var(--ls, 0em));
+    white-space: pre-line;
+  }
+  .b-details {
+    font-size: calc(47px * var(--fs-details, 1));
+    line-height: calc(1.35 * var(--lh, 1));
+    font-weight: 400;
+    letter-spacing: calc(-0.01em + var(--ls, 0em));
+    white-space: pre-line;
+  }
+  .b-details.sm { font-size: calc(28px * var(--fs-details, 1)); }
+
+  /* Headline in accent colour */
+  #poster.accent-title .b-title { color: var(--accent, #E61E2A); }
+
+  .al-right { text-align: right; }
+  .al-center { text-align: center; }
+  .v-bottom { align-self: end; }
+  .v-center { align-self: center; }
+  .c-white { color: #fff; }
+  .c-ink { color: var(--ink0, #000054); }
+
+  /* Edge bleeds: negative margins push a block past the poster padding */
+  .ext-t { margin-top: -44px; }
+  .ext-b { margin-bottom: -44px; }
+  .ext-l { margin-left: -44px; }
+  .ext-r { margin-right: -44px; }
+
+  /* Panel: solid block of secondary colour */
+  .b-panel { background: var(--accent2, #f2c400); z-index: 1; }
+  .b-panel.round-br { border-bottom-right-radius: 100%; }
+  .b-panel.corner-br { border-bottom-right-radius: 75px; }
+  .b-panel.corner-bl { border-bottom-left-radius: 75px; }
+  .b-panel.corner-tl { border-top-left-radius: 75px; }
+  /* speech bubble: exact paths from the SVG master, recoloured via vars */
+  .b-panel.bubble { background: none; }
+  .b-panel.bubble svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .b-panel.round-bl { border-bottom-left-radius: 100%; }
+  .b-panel.round-tr { border-top-right-radius: 100%; }
+
+  /* Accent shape: circle with arrow */
+  .b-shape { display: flex; align-items: flex-start; justify-content: flex-end; z-index: 3; }
+  .b-shape.left { justify-content: flex-start; }
+  .b-shape.center { justify-content: center; align-items: center; }
+  .shape-circle {
+    width: 100%;
+    max-width: 210px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--accent, #d32027);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .shape-circle svg { width: 58%; height: 58%; transform: rotate(var(--arrow-rot, 0deg)); }
+  .b-shape.bar { align-items: stretch; }
+  .shape-bar { width: 100%; background: var(--accent, #d32027); }
+
+  /* Image block: below text (z2) and shapes (z3), above panels when added later */
+  .b-image { overflow: hidden; z-index: 1; }
+  .img-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #c9c9c7;
+    overflow: hidden;
+  }
+  .img-wrap img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #poster.fx-duotone .img-wrap img { filter: grayscale(100%) contrast(1.05) brightness(1.02); }
+  #poster.fx-bw .img-wrap img { filter: grayscale(100%) contrast(1.08); }
+  #poster.fx-blur .img-wrap img { filter: blur(var(--blur, 10px)); transform: scale(1.12); }
+  /* treatments also apply to Bauhaus fills */
+  #poster.fx-duotone .img-wrap.geo svg { filter: grayscale(100%); }
+  #poster.fx-bw .img-wrap.geo svg { filter: grayscale(100%) contrast(1.08); }
+  #poster.fx-blur .img-wrap.geo svg { filter: blur(var(--blur, 10px)); transform: scale(1.12); }
+  .img-wrap .tint {
+    position: absolute;
+    inset: 0;
+    background: var(--duo, #189fe0);
+    mix-blend-mode: multiply;
+    display: none;
+    pointer-events: none;
+  }
+  #poster.fx-duotone .img-wrap .tint { display: block; }
+  /* Film grain overlay */
+  .img-wrap .grain {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px;
+    mix-blend-mode: overlay;
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .img-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #888;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  /* Geometric fill: an SVG composition instead of a photo */
+  .img-wrap.geo { background: #f4f1ea; }
+  .img-wrap.geo svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .b-image.bleed {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+  #poster.inverse::after {
+    /* darkening scrim so white text reads on full-bleed images */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.45));
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* QR code block: always a square, sized in JS to fit its grid area */
+  .b-qr { display: flex; align-items: center; justify-content: center; }
+  .b-qr.left { justify-content: flex-start; }
+  .b-qr.right { justify-content: flex-end; }
+  .qr-box { background: #fff; box-sizing: border-box; position: relative; flex: none; }
+  .qr-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .qr-ph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #e8e8e6;
+    color: #888;
+    font-size: 20px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Footer */
+  .b-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .footer-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+  .footer-mark {
+    width: 52px;
+    height: 52px;
+    background: var(--accent, #d32027);
+    flex: none;
+  }
+  .footer-text {
+    font-size: calc(47px * var(--fs-footer, 1));
+    font-weight: 400;
+    letter-spacing: calc(-0.01em + var(--ls, 0em));
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .b-footer.right { justify-content: flex-end; }
+  .footer-rwrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .footer-right {
+    font-size: calc(20px * var(--fs-footer, 1));
+    font-weight: 400;
+    letter-spacing: var(--ls, 0em);
+    text-align: right;
+    white-space: pre-line;
+  }
+  .footer-logo {
+    height: calc(52px * var(--f1s, 1));
+    max-width: calc(220px * var(--f1s, 1));
+    object-fit: contain;
+    flex: none;
+  }
+  .footer-rlogo {
+    height: calc(46px * var(--f2s, 1));
+    max-width: calc(150px * var(--f2s, 1));
+    object-fit: contain;
+    flex: none;
+  }
+
+  /* Grid overlay guides */
+  #gridOverlay {
+    position: absolute;
+    inset: 44px;
+    z-index: 50;
+    pointer-events: none;
+    display: none;
+  }
+  #poster.showgrid #gridOverlay { display: grid; }
+  #gridOverlay {
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: repeat(16, 1fr);
+    gap: 12px;
+  }
+  #gridOverlay .gcol {
+    background: rgba(0, 180, 255, 0.08);
+    border-left: 1px solid rgba(0, 180, 255, 0.35);
+    border-right: 1px solid rgba(0, 180, 255, 0.35);
+  }
+  #gridOverlay .grow {
+    border-top: 1px solid rgba(0, 180, 255, 0.35);
+    border-bottom: 1px solid rgba(0, 180, 255, 0.35);
+  }
+
+  /* ============ Print ============ */
+  /* @page size and #poster print dimensions are injected per canvas preset
+     into #printSizeCss by applyCanvas() */
+  @media print {
+    body { background: none; display: block; overflow: visible; }
+    #sidebar, #toolbar, #editorOverlay { display: none !important; }
+    #stage { height: auto; overflow: visible; display: block; }
+    #posterScaler { transform: none !important; }
+    #poster { box-shadow: none; }
+    #poster.showgrid #gridOverlay { display: none; }
+    .block[contenteditable]:hover, .block[contenteditable]:focus { outline: none; }
+  }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <h1>Collaterals</h1>
+  <div class="sub" id="subTitle">&nbsp;</div>
+
+  <section>
+    <h2>Canvas</h2>
+    <div class="canvas-grid" id="canvasGrid">
+      <button data-c="a4" class="active">A4<small>210 &times; 297</small></button>
+      <button data-c="a3">A3<small>297 &times; 420</small></button>
+      <button data-c="sq">1:1<small>square</small></button>
+      <button data-c="l43">4:3<small>landscape</small></button>
+      <button data-c="p34">3:4<small>portrait</small></button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Layout</h2>
+    <div class="cat-tabs" id="catTabs">
+      <button data-cat="signage" class="active">Signage</button>
+      <button data-cat="poster">Poster</button>
+      <button data-cat="feedback">Feedback</button>
+    </div>
+    <div class="layout-grid" id="layoutGrid"></div>
+    <div id="arrowCtl">
+      <label>Arrow direction</label>
+      <input type="range" id="rngArrow" min="0" max="315" step="45" value="0">
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" id="chkGrid">
+      <label for="chkGrid">Show grid</label>
+    </div>
+    <div class="uplrow">
+      <button class="btn" id="btnShuffle">&#x21bb; Shuffle</button>
+      <button class="btn" id="btnGenerate" title="Compose a brand-new layout from the preset elements">&#x2726; Generate</button>
+    </div>
+    <div class="hint">Shuffle picks a preset; Generate composes a new layout on the grid from preset elements.</div>
+  </section>
+
+  <section>
+    <h2>Type &amp; Content</h2>
+    <label for="selFont">Typeface</label>
+    <select class="ctrl" id="selFont">
+      <option value='"Helvetica Neue", Helvetica, Arial, sans-serif'>Helvetica Neue</option>
+      <option value='Arial, sans-serif'>Arial</option>
+      <option value='Futura, "Trebuchet MS", sans-serif'>Futura</option>
+      <option value='"Avenir Next", Avenir, sans-serif'>Avenir Next</option>
+      <option value='"Gill Sans", "Gill Sans MT", sans-serif'>Gill Sans</option>
+      <option value='Optima, sans-serif'>Optima</option>
+      <option value='Georgia, serif'>Georgia</option>
+      <option value='"Times New Roman", Times, serif'>Times</option>
+      <option value='Menlo, "Courier New", monospace'>Menlo (mono)</option>
+    </select>
+    <label>Letter spacing <span class="val" id="valTracking">0</span></label>
+    <input type="range" id="rngTracking" min="-0.05" max="0.15" step="0.005" value="0">
+    <label>Line height <span class="val" id="valLeading">1.00&times;</span></label>
+    <input type="range" id="rngLeading" min="0.8" max="1.6" step="0.02" value="1">
+    <button class="btn" id="btnTypeReset">Reset spacing</button>
+    <div class="divider"></div>
+    <label for="f-kicker">Kicker</label>
+    <textarea id="f-kicker" data-field="kicker" rows="2"></textarea>
+    <div class="typerow" data-tb="kicker">
+      <input type="range" min="0.5" max="2" step="0.05" value="1" title="Text scale">
+      <span class="tval">1.0</span>
+      <span class="alignbtns">
+        <button data-a="auto" title="Layout default"><svg viewBox="0 0 12 12"><path d="M3 6h6"/></svg></button><button data-a="left" title="Left"><svg viewBox="0 0 12 12"><path d="M2 3h8M2 6h5M2 9h7"/></svg></button><button data-a="center" title="Centre"><svg viewBox="0 0 12 12"><path d="M2 3h8M3.5 6h5M2.5 9h7"/></svg></button><button data-a="right" title="Right"><svg viewBox="0 0 12 12"><path d="M2 3h8M5 6h5M3 9h7"/></svg></button>
+      </span>
+    </div>
+    <label for="f-title">Title</label>
+    <textarea id="f-title" data-field="title" rows="2"></textarea>
+    <div class="typerow" data-tb="title">
+      <input type="range" min="0.5" max="2" step="0.05" value="1" title="Text scale">
+      <span class="tval">1.0</span>
+      <span class="alignbtns">
+        <button data-a="auto" title="Layout default"><svg viewBox="0 0 12 12"><path d="M3 6h6"/></svg></button><button data-a="left" title="Left"><svg viewBox="0 0 12 12"><path d="M2 3h8M2 6h5M2 9h7"/></svg></button><button data-a="center" title="Centre"><svg viewBox="0 0 12 12"><path d="M2 3h8M3.5 6h5M2.5 9h7"/></svg></button><button data-a="right" title="Right"><svg viewBox="0 0 12 12"><path d="M2 3h8M5 6h5M3 9h7"/></svg></button>
+      </span>
+    </div>
+    <label for="f-date">Date / big text</label>
+    <textarea id="f-date" data-field="date" rows="2"></textarea>
+    <div class="typerow" data-tb="date">
+      <input type="range" min="0.5" max="2" step="0.05" value="1" title="Text scale">
+      <span class="tval">1.0</span>
+      <span class="alignbtns">
+        <button data-a="auto" title="Layout default"><svg viewBox="0 0 12 12"><path d="M3 6h6"/></svg></button><button data-a="left" title="Left"><svg viewBox="0 0 12 12"><path d="M2 3h8M2 6h5M2 9h7"/></svg></button><button data-a="center" title="Centre"><svg viewBox="0 0 12 12"><path d="M2 3h8M3.5 6h5M2.5 9h7"/></svg></button><button data-a="right" title="Right"><svg viewBox="0 0 12 12"><path d="M2 3h8M5 6h5M3 9h7"/></svg></button>
+      </span>
+    </div>
+    <label for="f-details">Details (one per line)</label>
+    <textarea id="f-details" data-field="details" rows="3"></textarea>
+    <div class="typerow" data-tb="details">
+      <input type="range" min="0.5" max="2" step="0.05" value="1" title="Text scale">
+      <span class="tval">1.0</span>
+      <span class="alignbtns">
+        <button data-a="auto" title="Layout default"><svg viewBox="0 0 12 12"><path d="M3 6h6"/></svg></button><button data-a="left" title="Left"><svg viewBox="0 0 12 12"><path d="M2 3h8M2 6h5M2 9h7"/></svg></button><button data-a="center" title="Centre"><svg viewBox="0 0 12 12"><path d="M2 3h8M3.5 6h5M2.5 9h7"/></svg></button><button data-a="right" title="Right"><svg viewBox="0 0 12 12"><path d="M2 3h8M5 6h5M3 9h7"/></svg></button>
+      </span>
+    </div>
+    <label>Footer 1</label>
+    <div class="modeseg" id="mode1">
+      <button data-m="text" class="active">Text</button><button data-m="image">Image</button>
+    </div>
+    <input type="text" id="f-footerText" data-field="footerText">
+    <div id="row1Img" style="display:none">
+      <div class="uplrow">
+        <button class="btn" id="btnFLogo">Upload image&hellip;</button>
+        <button class="btn x" id="btnFLogoEdit" title="Crop / reposition">&#9998;</button>
+        <button class="btn x" id="btnFLogoX" title="Remove image">&times;</button>
+      </div>
+      <div class="typerow">
+        <input type="range" id="rngF1Scale" min="0.5" max="2" step="0.05" value="1" title="Image size">
+        <span class="tval" id="valF1Scale">1.0</span>
+      </div>
+    </div>
+    <label>Footer 2</label>
+    <div class="modeseg" id="mode2">
+      <button data-m="text" class="active">Text</button><button data-m="image">Image</button>
+    </div>
+    <input type="text" id="f-footerRight" data-field="footerRight">
+    <div id="row2Img" style="display:none">
+      <div class="uplrow">
+        <button class="btn" id="btnFRLogo">Upload image&hellip;</button>
+        <button class="btn x" id="btnFRLogoEdit" title="Crop / reposition">&#9998;</button>
+        <button class="btn x" id="btnFRLogoX" title="Remove image">&times;</button>
+      </div>
+      <div class="typerow">
+        <input type="range" id="rngF2Scale" min="0.5" max="2" step="0.05" value="1" title="Image size">
+        <span class="tval" id="valF2Scale">1.0</span>
+      </div>
+    </div>
+    <div class="typerow" data-tb="footer">
+      <input type="range" min="0.5" max="2" step="0.05" value="1" title="Footer text scale">
+      <span class="tval">1.0</span>
+    </div>
+    <input type="file" id="fileFLogo" accept="image/*" hidden>
+    <input type="file" id="fileFRLogo" accept="image/*" hidden>
+    <div class="hint">Each slider scales that text; the icons set its alignment (&ndash; = layout default). Footer slots show either text or an image. You can also click any text on the poster and type directly.</div>
+  </section>
+
+  <section>
+    <h2>Image</h2>
+    <div id="imgUploadRow">
+      <button class="btn" id="btnImage">Upload image&hellip;</button>
+    </div>
+    <div class="imgpreview" id="imgPreviewRow" style="display:none">
+      <img id="imgThumb" alt="uploaded image">
+      <span class="spacer"></span>
+      <button class="btn x" id="btnImageEdit" title="Zoom / crop / aspect">&#9998;</button>
+      <button class="btn x" id="btnImageReplace" title="Upload a different image">&#8635;</button>
+      <button class="btn x" id="btnImageX" title="Remove image">&times;</button>
+    </div>
+    <div class="hint" id="imgDragHint" style="display:none">Drag the photo on the poster to reposition it within its frame.</div>
+    <input type="file" id="fileImage" accept="image/*" hidden>
+    <div id="qrRow" style="display:none">
+      <label>QR code (square)</label>
+      <div class="uplrow">
+        <button class="btn" id="btnQR">Upload QR&hellip;</button>
+        <button class="btn x" id="btnQREdit" title="Crop / reposition">&#9998;</button>
+        <button class="btn x" id="btnQRX" title="Remove QR">&times;</button>
+      </div>
+    </div>
+    <input type="file" id="fileQR" accept="image/*" hidden>
+    <label>Bauhaus fill</label>
+    <div class="shape-picker" id="shapePicker"></div>
+    <div id="blockOpts" style="display:none">
+      <label>Block colour</label>
+      <div class="colorrow">
+        <input type="color" id="colBlock" value="#E3E5E0">
+        <span>plain colour block</span>
+      </div>
+    </div>
+    <div id="geoOpts" style="display:none">
+      <label>Fill colours</label>
+      <div class="colorrow">
+        <input type="color" id="colGeo1" value="#E61E2A">
+        <input type="color" id="colGeo2" value="#FAC800">
+        <input type="color" id="colGeo3" value="#000054">
+        <span>shape colours</span>
+      </div>
+    </div>
+    <label for="selEffect">Treatment</label>
+    <select class="ctrl" id="selEffect">
+      <option value="none">Original</option>
+      <option value="duotone">Duotone tint</option>
+      <option value="bw">Black &amp; white</option>
+      <option value="blur">Blur</option>
+    </select>
+    <div id="duoOpts" style="display:none">
+      <label>Tint colour</label>
+      <div class="colorrow">
+        <input type="color" id="colDuo" value="#189fe0">
+        <span>multiply over greyscale</span>
+      </div>
+    </div>
+    <div id="blurOpts" style="display:none">
+      <label>Blur intensity <span class="val" id="valBlur">10px</span></label>
+      <input type="range" id="rngBlur" min="2" max="30" step="1" value="10">
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" id="chkGrain">
+      <label for="chkGrain">Fine grain</label>
+    </div>
+    <div class="hint">Click a shape (or the plain block) to fill the image slot; click it again to return to your photo. Treatments apply to photos and fills alike.</div>
+  </section>
+
+  <section>
+    <h2>Colour</h2>
+    <label>Accent presets</label>
+    <div class="swatches" id="accentSwatches"></div>
+    <div class="checkrow">
+      <input type="checkbox" id="chkInvert">
+      <label for="chkInvert">Invert colours (dark mode)</label>
+    </div>
+    <div class="checkrow">
+      <input type="checkbox" id="chkAccentTitle">
+      <label for="chkAccentTitle">Accent the headline</label>
+    </div>
+    <div class="divider"></div>
+    <button class="btn" id="btnCustom">Custom accent &#x25b8;</button>
+    <div id="customColours" style="display:none">
+      <label>Accent</label>
+      <div class="colorrow">
+        <input type="color" id="colAccent" value="#E61E2A">
+        <span>circle, marks, bars</span>
+      </div>
+      <label>Panel colour</label>
+      <div class="colorrow">
+        <input type="color" id="colAccent2" value="#FAC800">
+        <span>Panel &amp; Arc layouts</span>
+      </div>
+      <label>Background</label>
+      <div class="colorrow">
+        <input type="color" id="colBg" value="#ffffff">
+        <span>poster background</span>
+      </div>
+      <label>Text</label>
+      <div class="colorrow">
+        <input type="color" id="colInk" value="#000054">
+        <span>body text / ink</span>
+      </div>
+      <button class="btn" id="btnColorReset">Restore default colours</button>
+    </div>
+  </section>
+
+</aside>
+
+<main id="stage">
+  <div id="posterScaler">
+    <div id="poster">
+      <div id="gridOverlay"></div>
+      <!-- blocks injected by JS -->
+    </div>
+  </div>
+</main>
+
+<div id="toolbar">
+  <button id="btnPNG" class="primary" title="Export PNG (~300 dpi; if it fails in Safari use Print)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5-11 11"/></svg>
+  </button>
+  <button id="btnPrint" title="Print / Save PDF">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+  </button>
+  <button id="btnSave" title="Save design (.json)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/></svg>
+  </button>
+  <button id="btnLoad" title="Load design (.json)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/></svg>
+  </button>
+  <input type="file" id="fileLoad" accept=".json" hidden>
+</div>
+
+<div id="editorOverlay">
+  <div id="editorPanel">
+    <h3>Crop &amp; reposition</h3>
+    <div id="editorViewport"><img id="editorImg" alt=""></div>
+    <div class="editor-row">
+      <label>Zoom</label>
+      <input type="range" id="edZoom" min="1" max="4" step="0.01" value="1">
+    </div>
+    <div class="editor-row">
+      <label>Aspect</label>
+      <select class="ctrl" id="edAspect">
+        <option value="orig">Original</option>
+        <option value="3:4">3:4 portrait</option>
+        <option value="1:1">1:1 square</option>
+        <option value="4:3">4:3 landscape</option>
+        <option value="16:9">16:9 wide</option>
+        <option value="2:3">2:3 tall</option>
+        <option value="3:1">3:1 banner</option>
+      </select>
+    </div>
+    <div class="editor-row btns">
+      <button class="btn" id="edCancel">Cancel</button>
+      <button class="btn primary" id="edApply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ================= State ================= */
+// per-content type settings: s = scale multiplier, a = alignment override
+const typeDefaults = () => ({
+  kicker:  { s: 1, a: "auto" },
+  title:   { s: 1, a: "auto" },
+  date:    { s: 1, a: "auto" },
+  details: { s: 1, a: "auto" },
+  footer:  { s: 1, a: "auto" },
+});
+
+const state = {
+  layout: "classic",
+  category: "signage", // signage (with arrow) | poster (no arrow) | feedback
+  kicker: "Industry\nCluster",
+  title: "PD DAY",
+  date: "Sept 11\n2026",
+  details: "B000.00.000\nB000.00.000\nB000.00.000",
+  footerText: "Logo",
+  footerRight: "",
+  image: null,          // dataURL (as displayed, possibly cropped)
+  imageOrig: null,      // dataURL as uploaded — crops always start from this
+  imgPos: { x: 50, y: 50 }, // cover-crop pan, set by dragging on the poster
+  footerImgScale: 1,
+  footerRightImgScale: 1,
+  footerImg: null,      // dataURL: footer 1 image
+  footerImgOrig: null,
+  footerRightImg: null, // dataURL: footer 2 image
+  footerRightImgOrig: null,
+  footer1Mode: "text",  // each footer slot shows either text or an image
+  footer2Mode: "text",
+  qrImg: null,          // dataURL: QR code (feedback layouts)
+  qrImgOrig: null,
+  effect: "none",       // none | duotone | bw | blur
+  grain: false,
+  blur: 10,             // px, for the blur treatment
+  accentTitle: false,
+  duoColor: "#189fe0",
+  accent: "#E61E2A",
+  accent2: "#FAC800",
+  geo1: "#E61E2A",      // Bauhaus fill colours, independent of the accents
+  geo2: "#FAC800",
+  geo3: "#000054",
+  font: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+  tracking: 0,     // em added to each block's default letter-spacing
+  leading: 1,      // multiplier on each block's default line-height
+  type: typeDefaults(),
+  canvas: "a4",
+  imageMode: "photo", // photo | block | a SHAPES key
+  blockColor: "#E3E5E0",
+  bg: "#ffffff",
+  ink: "#000054",
+  invert: false,   // dark mode: swap bg/ink on any layout
+  arrowRot: 0,
+  showGrid: false,
+};
+
+const ACCENTS = ["#E61E2A", "#000054", "#FAC800", "#E3E5E0", "#000000", "#FFFFFF"];
+
+/* ================= Canvas presets =================
+   w/h are on-screen px (width kept at 794 so typography stays tuned);
+   mm drives the print @page size and the ~300 dpi PNG export scale. */
+const CANVASES = {
+  a4:  { name: "A4",  w: 794, h: 1123, mm: [210, 297] },
+  a3:  { name: "A3",  w: 794, h: 1123, mm: [297, 420] },
+  sq:  { name: "1:1", w: 794, h: 794,  mm: [210, 210] },
+  l43: { name: "4:3", w: 794, h: 596,  mm: [280, 210] },
+  p34: { name: "3:4", w: 794, h: 1059, mm: [210, 280] },
+};
+
+/* Sidebar subtitle mirrors the current content and canvas */
+function updateSubtitle() {
+  const txt = `${state.kicker} ${state.title}`.replace(/\s+/g, " ").trim();
+  document.getElementById("subTitle").textContent =
+    `${txt || "Untitled"} · ${CANVASES[state.canvas].name}`;
+}
+
+/* ================= Bauhaus geometric fills =================
+   Inline SVGs; var(--geo1)/var(--geo2) recolour live with the palette.
+   preserveAspectRatio="slice" crops them to any image-block shape. */
+const GEO_BG = "#f4f1ea";
+function geoSVG(inner) {
+  return `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="140" fill="${GEO_BG}"/>${inner}</svg>`;
+}
+const SHAPES = {
+  arcs: geoSVG(`<circle cx="50" cy="140" r="62" fill="var(--geo3)"/>
+    <circle cx="50" cy="140" r="46" fill="var(--geo1)"/>
+    <circle cx="50" cy="140" r="30" fill="var(--geo2)"/>
+    <circle cx="50" cy="140" r="14" fill="${GEO_BG}"/>`),
+  dots: geoSVG(`<circle cx="25" cy="24" r="19" fill="var(--geo1)"/>
+    <circle cx="75" cy="24" r="19" fill="var(--geo3)"/>
+    <circle cx="25" cy="70" r="19" fill="var(--geo2)"/>
+    <circle cx="75" cy="70" r="19" fill="var(--geo1)"/>
+    <circle cx="25" cy="116" r="19" fill="var(--geo3)"/>
+    <circle cx="75" cy="116" r="19" fill="var(--geo2)"/>`),
+};
+
+/* ================= Layouts =================
+   12 columns x 16 rows. c/r are grid-line spans "start/end".
+   cls adds size/alignment classes. Omitted blocks are not rendered. */
+const LAYOUTS = {
+  classic: {
+    name: "Classic",
+    blocks: {
+      kicker:  { c: "1/9",  r: "1/3" },
+      title:   { c: "1/9",  r: "3/5" },
+      shape:   { c: "10/13", r: "1/4" },
+      image:   { c: "1/8",  r: "6/14" },
+      date:    { c: "8/13", r: "5/8",  cls: "al-right" },
+      details: { c: "8/13", r: "8/11" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  banner: {
+    name: "Banner",
+    blocks: {
+      image:   { c: "1/13", r: "1/8" },
+      kicker:  { c: "1/8",  r: "8/9",  cls: "v-bottom" },
+      title:   { c: "1/10", r: "9/12", cls: "xl" },
+      date:    { c: "8/13", r: "8/9",  cls: "al-right v-bottom" },
+      details: { c: "1/8",  r: "12/15" },
+      shape:   { c: "10/13", r: "12/15" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  split: {
+    name: "Split",
+    blocks: {
+      image:   { c: "8/13", r: "1/15" },
+      kicker:  { c: "1/7",  r: "1/3" },
+      title:   { c: "1/8",  r: "3/6", cls: "xl" },
+      date:    { c: "1/7",  r: "7/9" },
+      details: { c: "1/7",  r: "9/12" },
+      shape:   { c: "1/4",  r: "12/15", shapeCls: "left" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  overlay: {
+    name: "Overlay",
+    inverse: true,
+    blocks: {
+      image:   { c: "1/13", r: "1/17", cls: "bleed" },
+      kicker:  { c: "1/9",  r: "1/3" },
+      shape:   { c: "10/13", r: "1/4" },
+      title:   { c: "1/12", r: "9/12", cls: "xxl v-bottom" },
+      date:    { c: "1/8",  r: "12/14" },
+      details: { c: "8/13", r: "12/15", cls: "sm al-right" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  typeOnly: {
+    name: "Type",
+    blocks: {
+      kicker:  { c: "1/9",  r: "1/3" },
+      shape:   { c: "10/13", r: "1/4" },
+      title:   { c: "1/13", r: "4/10", cls: "xxl v-center" },
+      date:    { c: "1/8",  r: "10/13", cls: "v-bottom" },
+      details: { c: "8/13", r: "10/14", cls: "al-right v-bottom" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  quarters: {
+    name: "Quarters",
+    blocks: {
+      title:   { c: "1/9",  r: "1/4",  cls: "xl" },
+      kicker:  { c: "9/13", r: "1/3",  cls: "al-right" },
+      image:   { c: "7/13", r: "5/13" },
+      date:    { c: "1/7",  r: "5/8" },
+      details: { c: "1/7",  r: "8/11" },
+      shape:   { c: "1/4",  r: "11/14", shapeCls: "left" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  tower: {
+    name: "Tower",
+    blocks: {
+      image:   { c: "7/13", r: "1/11", cls: "ext-t ext-r" },
+      kicker:  { c: "1/6",  r: "1/3" },
+      title:   { c: "1/7",  r: "3/5" },
+      date:    { c: "1/7",  r: "8/11" },
+      details: { c: "1/7",  r: "11/14" },
+      shape:   { c: "10/13", r: "14/17" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  panel: {
+    name: "Panel",
+    blocks: {
+      panel:   { c: "1/6",  r: "1/11", cls: "ext-t ext-l" },
+      kicker:  { c: "1/5",  r: "1/3" },
+      title:   { c: "1/5",  r: "3/5" },
+      footer:  { c: "9/13", r: "1/2" },
+      date:    { c: "7/13", r: "3/6",  cls: "al-right" },
+      details: { c: "7/13", r: "6/9" },
+      image:   { c: "3/13", r: "9/17", cls: "ext-b ext-r" },
+      shape:   { c: "10/13", r: "14/17" },
+    },
+  },
+  band: {
+    name: "Band",
+    blocks: {
+      image:   { c: "1/13", r: "1/12", cls: "ext-t ext-l ext-r" },
+      footer:  { c: "1/13", r: "1/2",  cls: "c-white" },
+      kicker:  { c: "1/13", r: "4/7",  cls: "lg al-center c-white" },
+      title:   { c: "1/13", r: "7/9",  cls: "xl al-center c-white" },
+      date:    { c: "2/7",  r: "12/15" },
+      details: { c: "7/13", r: "12/15" },
+      shape:   { c: "6/8",  r: "15/17", shapeCls: "center" },
+    },
+  },
+  arc: {
+    name: "Arc",
+    blocks: {
+      image:   { c: "2/12", r: "3/15" },
+      panel:   { c: "1/6",  r: "1/5",  cls: "ext-t ext-l round-br", z: 3 },
+      kicker:  { c: "2/6",  r: "5/7",  cls: "c-white" },
+      title:   { c: "2/8",  r: "7/9",  cls: "c-white" },
+      date:    { c: "5/11", r: "9/12", cls: "al-right c-white" },
+      details: { c: "3/9",  r: "12/14", cls: "al-right c-white" },
+      shape:   { c: "10/13", r: "14/17" },
+      footer:  { c: "1/13", r: "15/17" },
+    },
+  },
+  /* ---- Feedback category: header pair, headline (Date), body (Details), QR ---- */
+  fbBubble: {
+    name: "Bubble",
+    cat: "feedback",
+    blocks: {
+      kicker:  { c: "1/5",  r: "1/2",  cls: "sm" },
+      title:   { c: "1/5",  r: "2/3",  cls: "sm" },
+      panel:   { c: "1/13", r: "4/15", cls: "bubble ext-l ext-r" },
+      date:    { c: "2/12", r: "5/7",  cls: "al-center c-ink" },
+      details: { c: "2/12", r: "7/10", cls: "al-center c-ink" },
+      qr:      { c: "1/8",  r: "11/17", qrCls: "left", frame: "none", z: 3 },
+      footer:  { c: "7/13", r: "15/17", cls: "right" },
+    },
+  },
+  fbPhoto: {
+    name: "Photo",
+    cat: "feedback",
+    blocks: {
+      image:   { c: "1/13", r: "1/6",  cls: "ext-t ext-l ext-r" },
+      panel:   { c: "1/5",  r: "1/4",  cls: "ext-t ext-l corner-br", z: 3 },
+      kicker:  { c: "1/5",  r: "1/2",  cls: "sm", z: 4 },
+      title:   { c: "1/5",  r: "2/3",  cls: "sm", z: 4 },
+      date:    { c: "1/10", r: "6/9" },
+      details: { c: "1/7",  r: "9/14" },
+      panel2:  { c: "9/13", r: "14/17", cls: "ext-r ext-b corner-tl" },
+      qr:      { c: "7/13", r: "10/17", qrCls: "right", frame: "accent" },
+      footer:  { c: "1/6",  r: "15/17" },
+    },
+  },
+  fbSide: {
+    name: "Side",
+    cat: "feedback",
+    blocks: {
+      panel:   { c: "1/6",  r: "1/17", cls: "ext-t ext-l ext-b" },
+      kicker:  { c: "1/5",  r: "1/2",  cls: "sm" },
+      title:   { c: "1/5",  r: "2/3",  cls: "sm" },
+      date:    { c: "4/13", r: "3/6",  cls: "al-right" },
+      details: { c: "4/13", r: "6/10", cls: "al-right" },
+      qr:      { c: "1/8",  r: "11/17", qrCls: "left", frame: "ink" },
+      footer:  { c: "8/13", r: "15/17", cls: "right" },
+    },
+  },
+  fbCorner: {
+    name: "Corner",
+    cat: "feedback",
+    blocks: {
+      panel:   { c: "1/5",  r: "1/4",  cls: "ext-t ext-l corner-br" },
+      kicker:  { c: "1/5",  r: "1/2",  cls: "sm" },
+      title:   { c: "1/5",  r: "2/3",  cls: "sm" },
+      date:    { c: "1/9",  r: "4/7" },
+      details: { c: "1/13", r: "7/11" },
+      panel2:  { c: "9/13", r: "14/17", cls: "ext-r ext-b corner-tl" },
+      qr:      { c: "6/13", r: "11/17", qrCls: "right", frame: "ink" },
+      footer:  { c: "1/5",  r: "15/17" },
+    },
+  },
+  fbBand: {
+    name: "Band",
+    cat: "feedback",
+    blocks: {
+      panel:   { c: "1/13", r: "1/4",  cls: "ext-t ext-l ext-r" },
+      panel2:  { c: "1/13", r: "14/17", cls: "ext-b ext-l ext-r" },
+      footer:  { c: "1/6",  r: "1/3" },
+      kicker:  { c: "5/9",  r: "1/2",  cls: "sm al-center" },
+      title:   { c: "5/9",  r: "2/3",  cls: "sm al-center" },
+      date:    { c: "2/12", r: "4/7",  cls: "al-center" },
+      details: { c: "2/12", r: "7/11", cls: "al-center" },
+      qr:      { c: "3/11", r: "11/17", frame: "accent" },
+    },
+  },
+};
+
+/* Speech bubble taken verbatim from the SVG master (S-QR-Poster-10.svg);
+   shadow + bubble recolour with the accent/panel palette */
+const BUBBLE_SVG = `<svg viewBox="0 210 841.89 741.55" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill="var(--accent, #E61E2A)" d="M701.17,239H140.72C63.003,239,0,302.003,0,379.72v140.37c0,77.718,63.003,140.72,140.72,140.72h315.75L327.75,951.55l320.39-290.74h53.03c77.718,0,140.72-63.003,140.72-140.72V379.72C841.89,302.003,778.888,239,701.17,239z"/>
+  <path fill="var(--accent2, #FAC800)" d="M701.06,210.02H140.83C63.052,210.02,0,273.072,0,350.85V491c0,77.778,63.052,140.83,140.83,140.83h315.636L327.75,922.57l320.38-290.74h52.93c77.778,0,140.83-63.052,140.83-140.83V350.85C841.89,273.072,778.838,210.02,701.06,210.02z"/>
+</svg>`;
+
+/* ================= DOM refs ================= */
+const poster = document.getElementById("poster");
+const scaler = document.getElementById("posterScaler");
+const stage = document.getElementById("stage");
+const gridOverlay = document.getElementById("gridOverlay");
+
+for (let i = 1; i <= 12; i++) {
+  const d = document.createElement("div");
+  d.className = "gcol";
+  d.style.gridColumn = String(i);
+  d.style.gridRow = "1 / -1";
+  gridOverlay.appendChild(d);
+}
+for (let j = 1; j <= 16; j++) {
+  const d = document.createElement("div");
+  d.className = "grow";
+  d.style.gridColumn = "1 / -1";
+  d.style.gridRow = String(j);
+  gridOverlay.appendChild(d);
+}
+
+/* ================= Render ================= */
+/* Relative luminance / WCAG contrast helpers */
+function lum(hex) {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const [r, g, b] = [h.slice(0, 2), h.slice(2, 4), h.slice(4, 6)].map((x) => {
+    const c = parseInt(x, 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const l1 = lum(a), l2 = lum(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+function arrowSVG() {
+  // keep the arrow visible on light accents (e.g. white or yellow circles)
+  const stroke = lum(state.accent) > 0.5 ? "#000054" : "#fff";
+  return `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 50 H80 M56 24 L84 50 L56 76" stroke="${stroke}" stroke-width="13"
+      stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function makeTextBlock(field, baseCls, def) {
+  const el = document.createElement("div");
+  el.className = `block ${baseCls}${def.cls ? " " + def.cls : ""}`;
+  el.style.gridColumn = def.c;
+  el.style.gridRow = def.r;
+  el.dataset.field = field;
+  if (def.z) el.style.zIndex = def.z;
+  const t = state.type[field];
+  if (t && t.a && t.a !== "auto") el.style.textAlign = t.a;
+  el.setAttribute("contenteditable", "plaintext-only");
+  el.setAttribute("spellcheck", "false");
+  el.textContent = state[field];
+  el.addEventListener("input", () => {
+    state[field] = el.innerText.replace(/\n$/, "");
+    const input = document.querySelector(`#sidebar [data-field="${field}"]`);
+    if (input) input.value = state[field];
+    updateSubtitle();
+  });
+  return el;
+}
+
+function renderPoster() {
+  const layout = LAYOUTS[state.layout];
+  poster.querySelectorAll(".block").forEach((b) => b.remove());
+  poster.classList.toggle("inverse", !!layout.inverse);
+  poster.classList.remove("fx-duotone", "fx-none", "fx-bw", "fx-blur");
+  poster.classList.add("fx-" + (state.effect || "none"));
+  poster.classList.toggle("accent-title", !!state.accentTitle);
+  poster.classList.toggle("showgrid", state.showGrid);
+  poster.style.setProperty("--accent", state.accent);
+  poster.style.setProperty("--ink0", state.ink);
+  poster.style.setProperty("--f1s", state.footerImgScale);
+  poster.style.setProperty("--f2s", state.footerRightImgScale);
+  poster.style.setProperty("--accent2", state.accent2);
+  poster.style.setProperty("--geo1", state.geo1);
+  poster.style.setProperty("--geo2", state.geo2);
+  poster.style.setProperty("--geo3", state.geo3);
+  poster.style.setProperty("--blur", state.blur + "px");
+  poster.style.setProperty("--duo", state.duoColor);
+  // invert (dark mode) swaps background and text colours on any layout
+  poster.style.setProperty("--bg", state.invert ? state.ink : state.bg);
+  poster.style.setProperty("--ink", state.invert ? state.bg : state.ink);
+  poster.style.setProperty("--arrow-rot", state.arrowRot + "deg");
+  poster.style.setProperty("--font", state.font);
+  poster.style.setProperty("--ls", state.tracking + "em");
+  poster.style.setProperty("--lh", state.leading);
+  for (const k of Object.keys(state.type)) {
+    poster.style.setProperty("--fs-" + k, state.type[k].s);
+  }
+
+  const b = layout.blocks;
+
+  for (const pk of ["panel", "panel2"]) {
+    if (!b[pk]) continue;
+    const el = document.createElement("div");
+    el.className = `block b-panel${b[pk].cls ? " " + b[pk].cls : ""}`;
+    el.style.gridColumn = b[pk].c;
+    el.style.gridRow = b[pk].r;
+    if (b[pk].z) el.style.zIndex = b[pk].z;
+    if ((b[pk].cls || "").includes("bubble")) el.innerHTML = BUBBLE_SVG;
+    poster.appendChild(el);
+  }
+
+  if (b.kicker)  poster.appendChild(makeTextBlock("kicker", "b-kicker", b.kicker));
+  if (b.title)   poster.appendChild(makeTextBlock("title", "b-title", b.title));
+  if (b.date)    poster.appendChild(makeTextBlock("date", "b-date", b.date));
+  if (b.details) poster.appendChild(makeTextBlock("details", "b-details", b.details));
+
+  // poster category = same layouts without the directional arrow
+  if (b.shape && state.category !== "poster") {
+    const el = document.createElement("div");
+    el.className = `block b-shape${b.shape.shapeCls ? " " + b.shape.shapeCls : ""}`;
+    el.style.gridColumn = b.shape.c;
+    el.style.gridRow = b.shape.r;
+    el.innerHTML = `<div class="shape-circle">${arrowSVG()}</div>`;
+    poster.appendChild(el);
+  }
+
+  if (b.image) {
+    const el = document.createElement("div");
+    el.className = `block b-image${b.image.cls ? " " + b.image.cls : ""}`;
+    if (!(b.image.cls || "").includes("bleed")) {
+      // bleed images must not be grid-placed: an absolutely positioned grid
+      // item uses its grid area as containing block, so inset:0 wouldn't
+      // reach the poster edges
+      el.style.gridColumn = b.image.c;
+      el.style.gridRow = b.image.r;
+    }
+    const grain = state.grain ? `<div class="grain"></div>` : "";
+    if (state.imageMode === "block") {
+      el.innerHTML = `<div class="img-wrap solid" style="background:${state.blockColor}">${grain}</div>`;
+    } else if (state.imageMode !== "photo" && SHAPES[state.imageMode]) {
+      el.innerHTML = `<div class="img-wrap geo">${SHAPES[state.imageMode]}<div class="tint"></div>${grain}</div>`;
+    } else {
+      const img = state.image
+        ? `<img src="${state.image}" alt="" style="object-position:${state.imgPos.x}% ${state.imgPos.y}%">`
+        : `<div class="img-placeholder">Image</div>`;
+      el.innerHTML = `<div class="img-wrap">${img}<div class="tint"></div>${grain}</div>`;
+      if (!state.image) {
+        el.style.cursor = "pointer";
+        el.title = "Click to upload an image";
+        el.addEventListener("click", () => document.getElementById("fileImage").click());
+      } else {
+        // drag the photo to pan its cover-crop within the frame
+        el.style.cursor = "grab";
+        el.title = "Drag to reposition the photo";
+        const imgEl = el.querySelector("img");
+        let drag = null;
+        el.addEventListener("pointerdown", (e) => {
+          drag = { x: e.clientX, y: e.clientY, px: state.imgPos.x, py: state.imgPos.y };
+          el.style.cursor = "grabbing";
+          el.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        });
+        el.addEventListener("pointermove", (e) => {
+          if (!drag) return;
+          const r = el.getBoundingClientRect();
+          state.imgPos.x = Math.max(0, Math.min(100,
+            drag.px - (e.clientX - drag.x) / r.width * 100));
+          state.imgPos.y = Math.max(0, Math.min(100,
+            drag.py - (e.clientY - drag.y) / r.height * 100));
+          imgEl.style.objectPosition = `${state.imgPos.x}% ${state.imgPos.y}%`;
+        });
+        el.addEventListener("pointerup", () => {
+          drag = null;
+          el.style.cursor = "grab";
+        });
+      }
+    }
+    poster.appendChild(el);
+  }
+
+  document.getElementById("qrRow").style.display = b.qr ? "" : "none";
+  syncImageRow();
+  if (b.qr) {
+    const el = document.createElement("div");
+    el.className = `block b-qr${b.qr.qrCls ? " " + b.qr.qrCls : ""}`;
+    el.style.gridColumn = b.qr.c;
+    el.style.gridRow = b.qr.r;
+    if (b.qr.z) el.style.zIndex = b.qr.z;
+    // largest square that fits the grid area (QR codes must stay square)
+    const cv = CANVASES[state.canvas];
+    const colW = (cv.w - 88 - 11 * 12) / 12;
+    const rowH = (cv.h - 88 - 15 * 12) / 16;
+    const rect = spanRect(b.qr);
+    const w = (rect.c2 - rect.c1) * colW + (rect.c2 - rect.c1 - 1) * 12;
+    const h = (rect.r2 - rect.r1) * rowH + (rect.r2 - rect.r1 - 1) * 12;
+    const side = Math.floor(Math.min(w, h));
+    const frame = b.qr.frame === "accent" ? state.accent
+      : b.qr.frame === "ink" ? (state.invert ? state.bg : state.ink)
+      : "transparent";
+    const bw = b.qr.frame && b.qr.frame !== "none" ? Math.round(side * 0.055) : 0;
+    const pad = Math.round(side * 0.045);
+    const inner = state.qrImg
+      ? `<img src="${state.qrImg}" alt="QR code">`
+      : `<div class="qr-ph">QR</div>`;
+    el.innerHTML = `<div class="qr-box" style="width:${side}px;height:${side}px;border:${bw}px solid ${frame};padding:${pad}px">${inner}</div>`;
+    el.style.cursor = "pointer";
+    el.title = "Click to upload a QR code";
+    el.addEventListener("click", () => document.getElementById("fileQR").click());
+    poster.appendChild(el);
+  }
+
+  if (b.footer) {
+    const el = document.createElement("div");
+    el.className = `block b-footer${b.footer.cls ? " " + b.footer.cls : ""}`;
+    el.style.gridColumn = b.footer.c;
+    el.style.gridRow = b.footer.r;
+    // each footer slot shows either its image or its text, never both
+    const left = state.footer1Mode === "image"
+      ? (state.footerImg ? `<img class="footer-logo" src="${state.footerImg}" alt="">` : "")
+      : `<div class="footer-mark"></div>
+         <div class="footer-text" contenteditable="plaintext-only" spellcheck="false" data-field="footerText"></div>`;
+    const right = state.footer2Mode === "image"
+      ? (state.footerRightImg ? `<img class="footer-rlogo" src="${state.footerRightImg}" alt="">` : "")
+      : `<div class="footer-right" contenteditable="plaintext-only" spellcheck="false" data-field="footerRight"></div>`;
+    el.innerHTML = `
+      <div class="footer-left">${left}</div>
+      <div class="footer-rwrap">${right}</div>`;
+    const ft = el.querySelector(".footer-text");
+    if (ft) ft.textContent = state.footerText;
+    const fr = el.querySelector(".footer-right");
+    if (fr) fr.textContent = state.footerRight;
+    el.querySelectorAll("[contenteditable]").forEach((t) => {
+      t.addEventListener("input", () => {
+        state[t.dataset.field] = t.innerText.replace(/\n$/, "");
+        const input = document.querySelector(`#sidebar [data-field="${t.dataset.field}"]`);
+        if (input) input.value = state[t.dataset.field];
+      });
+    });
+    poster.appendChild(el);
+  }
+  updateSubtitle();
+}
+
+/* ================= Layout thumbnails ================= */
+function drawThumb(key) {
+  const layout = LAYOUTS[key];
+  let rects = "";
+  const cw = 60 / 12, rh = 85 / 16; // thumb 60x85 units
+  const ink = state.invert ? state.bg : state.ink;
+  const muted = "#999";
+  // the image slot previews whatever fill is active
+  const imageFill = state.imageMode === "block" ? state.blockColor
+    : SHAPES[state.imageMode] ? state.geo1
+    : "#9dc9e8";
+  for (const [name, def] of Object.entries(layout.blocks)) {
+    if (name === "shape" && state.category === "poster") continue;
+    const [c1, c2] = def.c.split("/").map(Number);
+    const [r1, r2] = def.r.split("/").map(Number);
+    const x = (c1 - 1) * cw + 4, y = (r1 - 1) * rh + 4;
+    const w = (c2 - c1) * cw - 1, h = (r2 - r1) * rh - 1;
+    let fill = ink;
+    if (name === "image") fill = imageFill;
+    if (name === "shape") fill = state.accent;
+    if (name === "panel" || name === "panel2") fill = state.accent2;
+    if (name === "footer" || name === "details" || name === "kicker") fill = muted;
+    if (name === "qr") {
+      const side = Math.min(w, h);
+      rects += `<rect x="${x}" y="${y}" width="${side}" height="${side}" fill="#fff" stroke="#999" stroke-width="0.8"/>`;
+      continue;
+    }
+    rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" rx="0.5"/>`;
+  }
+  const bg = state.invert ? state.ink : (layout.inverse ? "#5b7f96" : state.bg);
+  return `<svg viewBox="0 0 68 93" xmlns="http://www.w3.org/2000/svg">
+    <rect width="68" height="93" fill="${bg}"/>${rects}</svg>`;
+}
+
+/* preset keys belonging to the active category (generated handled separately) */
+function layoutPool() {
+  return Object.keys(LAYOUTS).filter((k) => {
+    if (k === "generated") return false;
+    return state.category === "feedback"
+      ? LAYOUTS[k].cat === "feedback"
+      : !LAYOUTS[k].cat;
+  });
+}
+
+function buildLayoutPicker() {
+  const grid = document.getElementById("layoutGrid");
+  grid.innerHTML = "";
+  const keys = layoutPool();
+  if (LAYOUTS.generated) keys.push("generated");
+  for (const key of keys) {
+    const btn = document.createElement("button");
+    btn.className = "layout-thumb" + (key === state.layout ? " active" : "");
+    btn.innerHTML = drawThumb(key) + `<span>${LAYOUTS[key].name}</span>`;
+    btn.addEventListener("click", () => {
+      state.layout = key;
+      buildLayoutPicker();
+      renderPoster();
+    });
+    grid.appendChild(btn);
+  }
+}
+
+/* ================= Shape picker ================= */
+function buildShapePicker() {
+  const wrap = document.getElementById("shapePicker");
+  wrap.innerHTML = "";
+  wrap.style.setProperty("--geo1", state.geo1);
+  wrap.style.setProperty("--geo2", state.geo2);
+  wrap.style.setProperty("--geo3", state.geo3);
+  document.getElementById("blockOpts").style.display =
+    state.imageMode === "block" ? "" : "none";
+  document.getElementById("geoOpts").style.display =
+    SHAPES[state.imageMode] ? "" : "none";
+  for (const key of ["block", ...Object.keys(SHAPES)]) {
+    const btn = document.createElement("button");
+    btn.className = "shape-btn" + (key === state.imageMode ? " active" : "");
+    btn.title = key === "block" ? "Colour block" : key;
+    btn.innerHTML = key === "block"
+      ? `<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="140" fill="${state.blockColor}"/></svg>`
+      : SHAPES[key];
+    btn.addEventListener("click", () => {
+      state.imageMode = state.imageMode === key ? "photo" : key; // click again → photo
+      refreshPickers();
+      renderPoster();
+    });
+    wrap.appendChild(btn);
+  }
+}
+
+/* ================= Canvas ================= */
+const printSizeCss = document.createElement("style");
+printSizeCss.id = "printSizeCss";
+document.head.appendChild(printSizeCss);
+
+function applyCanvas() {
+  const c = CANVASES[state.canvas];
+  poster.style.width = c.w + "px";
+  poster.style.height = c.h + "px";
+  printSizeCss.textContent = `@page { size: ${c.mm[0]}mm ${c.mm[1]}mm; margin: 0; }
+    @media print { #poster { width: ${c.mm[0]}mm !important; height: ${c.mm[1] - 1}mm !important; } }`;
+  fitPoster();
+  updateSubtitle();
+}
+function syncCanvasButtons() {
+  document.querySelectorAll("#canvasGrid button").forEach((b) =>
+    b.classList.toggle("active", b.dataset.c === state.canvas));
+}
+document.querySelectorAll("#canvasGrid button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    state.canvas = btn.dataset.c;
+    syncCanvasButtons();
+    applyCanvas();
+  });
+});
+
+/* ================= Layout categories ================= */
+function syncCategoryUI() {
+  document.querySelectorAll("#catTabs button").forEach((b) =>
+    b.classList.toggle("active", b.dataset.cat === state.category));
+  // the arrow only exists on signage layouts
+  document.getElementById("arrowCtl").style.display =
+    state.category === "signage" ? "" : "none";
+}
+document.querySelectorAll("#catTabs button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    state.category = btn.dataset.cat;
+    const pool = layoutPool();
+    if (state.layout !== "generated" && !pool.includes(state.layout)) {
+      state.layout = pool[0];
+    }
+    syncCategoryUI();
+    buildLayoutPicker();
+    renderPoster();
+  });
+});
+
+/* ================= Sidebar bindings ================= */
+document.querySelectorAll("#sidebar [data-field]").forEach((input) => {
+  input.value = state[input.dataset.field];
+  input.addEventListener("input", () => {
+    state[input.dataset.field] = input.value;
+    const block = poster.querySelector(`.block[data-field="${input.dataset.field}"], [data-field="${input.dataset.field}"]`);
+    if (block && block.innerText !== input.value) block.textContent = input.value;
+    updateSubtitle();
+  });
+});
+
+const accentWrap = document.getElementById("accentSwatches");
+function buildSwatches() {
+  accentWrap.innerHTML = "";
+  for (const col of ACCENTS) {
+    const s = document.createElement("button");
+    s.className = "swatch" + (col === state.accent ? " active" : "");
+    s.style.background = col;
+    s.addEventListener("click", () => {
+      state.accent = col;
+      document.getElementById("colAccent").value = col;
+      refreshPickers();
+      renderPoster();
+    });
+    accentWrap.appendChild(s);
+  }
+}
+
+/* Rebuild every colour-dependent preview (layout thumbs, swatches, shapes) */
+function refreshPickers() {
+  buildLayoutPicker();
+  buildSwatches();
+  buildShapePicker();
+}
+document.getElementById("btnCustom").addEventListener("click", () => {
+  const box = document.getElementById("customColours");
+  const open = box.style.display !== "none";
+  box.style.display = open ? "none" : "";
+  document.getElementById("btnCustom").innerHTML =
+    "Custom accent " + (open ? "&#x25b8;" : "&#x25be;");
+});
+document.getElementById("colAccent").addEventListener("input", (e) => {
+  state.accent = e.target.value; refreshPickers(); renderPoster();
+});
+document.getElementById("colAccent2").addEventListener("input", (e) => {
+  state.accent2 = e.target.value; refreshPickers(); renderPoster();
+});
+
+/* Restore all colours to the tool defaults */
+const COLOR_DEFAULTS = {
+  accent: "#E61E2A", accent2: "#FAC800", bg: "#ffffff", ink: "#000054",
+  duoColor: "#189fe0", geo1: "#E61E2A", geo2: "#FAC800", geo3: "#000054",
+  blockColor: "#E3E5E0",
+};
+document.getElementById("btnColorReset").addEventListener("click", () => {
+  Object.assign(state, COLOR_DEFAULTS);
+  document.getElementById("colAccent").value = state.accent;
+  document.getElementById("colAccent2").value = state.accent2;
+  document.getElementById("colBg").value = state.bg;
+  document.getElementById("colInk").value = state.ink;
+  document.getElementById("colDuo").value = state.duoColor;
+  document.getElementById("colGeo1").value = state.geo1;
+  document.getElementById("colGeo2").value = state.geo2;
+  document.getElementById("colGeo3").value = state.geo3;
+  document.getElementById("colBlock").value = state.blockColor;
+  refreshPickers();
+  renderPoster();
+});
+document.getElementById("colDuo").addEventListener("input", (e) => {
+  state.duoColor = e.target.value; renderPoster();
+});
+document.getElementById("colBg").addEventListener("input", (e) => {
+  state.bg = e.target.value; refreshPickers(); renderPoster();
+});
+document.getElementById("colInk").addEventListener("input", (e) => {
+  state.ink = e.target.value; refreshPickers(); renderPoster();
+});
+/* Treatment sub-options only show for the treatment they belong to */
+function updateTreatmentOpts() {
+  document.getElementById("duoOpts").style.display =
+    state.effect === "duotone" ? "" : "none";
+  document.getElementById("blurOpts").style.display =
+    state.effect === "blur" ? "" : "none";
+}
+document.getElementById("selEffect").addEventListener("change", (e) => {
+  state.effect = e.target.value;
+  updateTreatmentOpts();
+  renderPoster();
+});
+document.getElementById("rngBlur").addEventListener("input", (e) => {
+  state.blur = Number(e.target.value);
+  document.getElementById("valBlur").textContent = state.blur + "px";
+  poster.style.setProperty("--blur", state.blur + "px");
+});
+document.getElementById("colBlock").addEventListener("input", (e) => {
+  state.blockColor = e.target.value; refreshPickers(); renderPoster();
+});
+["colGeo1", "colGeo2", "colGeo3"].forEach((id, i) => {
+  document.getElementById(id).addEventListener("input", (e) => {
+    state["geo" + (i + 1)] = e.target.value;
+    refreshPickers();
+    renderPoster();
+  });
+});
+document.getElementById("chkGrain").addEventListener("change", (e) => {
+  state.grain = e.target.checked; renderPoster();
+});
+document.getElementById("chkAccentTitle").addEventListener("change", (e) => {
+  state.accentTitle = e.target.checked; renderPoster();
+});
+document.getElementById("chkInvert").addEventListener("change", (e) => {
+  state.invert = e.target.checked;
+  refreshPickers(); // thumbnails preview the inversion
+  renderPoster();
+});
+document.getElementById("chkGrid").addEventListener("change", (e) => {
+  state.showGrid = e.target.checked; renderPoster();
+});
+document.getElementById("rngArrow").addEventListener("input", (e) => {
+  state.arrowRot = Number(e.target.value);
+  poster.style.setProperty("--arrow-rot", state.arrowRot + "deg");
+});
+
+/* ================= Typography ================= */
+function applyTypeVars() {
+  for (const k of Object.keys(state.type)) {
+    poster.style.setProperty("--fs-" + k, state.type[k].s);
+  }
+}
+function applyType() {
+  poster.style.setProperty("--font", state.font);
+  poster.style.setProperty("--ls", state.tracking + "em");
+  poster.style.setProperty("--lh", state.leading);
+  applyTypeVars();
+  document.getElementById("valTracking").textContent =
+    (state.tracking > 0 ? "+" : "") + state.tracking.toFixed(3).replace(/0+$/, "").replace(/\.$/, "") + "em";
+  document.getElementById("valLeading").textContent = state.leading.toFixed(2) + "×";
+}
+function syncTypeControls() {
+  document.getElementById("selFont").value = state.font;
+  document.getElementById("rngTracking").value = state.tracking;
+  document.getElementById("rngLeading").value = state.leading;
+  syncTypeRows();
+  applyType();
+}
+
+/* Per-content scale + alignment rows */
+function syncTypeRows() {
+  document.querySelectorAll(".typerow").forEach((row) => {
+    const t = state.type[row.dataset.tb];
+    if (!t) return;
+    row.querySelector("input[type=range]").value = t.s;
+    row.querySelector(".tval").textContent = t.s.toFixed(2).replace(/0$/, "");
+    row.querySelectorAll(".alignbtns button").forEach((btn) =>
+      btn.classList.toggle("active", btn.dataset.a === (t.a || "auto")));
+  });
+}
+document.querySelectorAll(".typerow").forEach((row) => {
+  const key = row.dataset.tb;
+  const rng = row.querySelector("input[type=range]");
+  rng.addEventListener("input", () => {
+    state.type[key].s = Number(rng.value);
+    row.querySelector(".tval").textContent = state.type[key].s.toFixed(2).replace(/0$/, "");
+    applyTypeVars();
+  });
+  row.querySelectorAll(".alignbtns button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.type[key].a = btn.dataset.a;
+      row.querySelectorAll(".alignbtns button").forEach((b) =>
+        b.classList.toggle("active", b === btn));
+      renderPoster();
+    });
+  });
+});
+document.getElementById("selFont").addEventListener("change", (e) => {
+  state.font = e.target.value; applyType();
+});
+document.getElementById("rngTracking").addEventListener("input", (e) => {
+  state.tracking = Number(e.target.value); applyType();
+});
+document.getElementById("rngLeading").addEventListener("input", (e) => {
+  state.leading = Number(e.target.value); applyType();
+});
+document.getElementById("btnTypeReset").addEventListener("click", () => {
+  state.tracking = 0;
+  state.leading = 1;
+  state.type = typeDefaults();
+  syncTypeControls();
+  renderPoster();
+});
+
+/* ================= Image upload ================= */
+function syncImageRow() {
+  const has = !!state.image;
+  document.getElementById("imgUploadRow").style.display = has ? "none" : "";
+  document.getElementById("imgPreviewRow").style.display = has ? "" : "none";
+  document.getElementById("imgDragHint").style.display = has ? "" : "none";
+  if (has) {
+    const t = document.getElementById("imgThumb");
+    if (t.src !== state.image) t.src = state.image;
+  }
+}
+document.getElementById("btnImage").addEventListener("click", () =>
+  document.getElementById("fileImage").click());
+document.getElementById("btnImageReplace").addEventListener("click", () =>
+  document.getElementById("fileImage").click());
+document.getElementById("btnImageX").addEventListener("click", () => {
+  state.image = state.imageOrig = null;
+  state.imgPos = { x: 50, y: 50 };
+  refreshPickers();
+  renderPoster();
+});
+document.getElementById("fileImage").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.image = state.imageOrig = reader.result;
+    state.imageMode = "photo";
+    state.imgPos = { x: 50, y: 50 };
+    refreshPickers();
+    renderPoster();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
+document.getElementById("btnImageEdit").addEventListener("click", () => openEditor("image"));
+
+/* Footer slots: text OR image */
+function syncFooterModes() {
+  [["mode1", "footer1Mode", "f-footerText", "row1Img"],
+   ["mode2", "footer2Mode", "f-footerRight", "row2Img"]].forEach(([segId, key, txtId, rowId]) => {
+    document.querySelectorAll(`#${segId} button`).forEach((b) =>
+      b.classList.toggle("active", b.dataset.m === state[key]));
+    document.getElementById(txtId).style.display = state[key] === "text" ? "" : "none";
+    document.getElementById(rowId).style.display = state[key] === "image" ? "" : "none";
+  });
+}
+document.querySelectorAll(".modeseg button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const key = btn.closest(".modeseg").id === "mode1" ? "footer1Mode" : "footer2Mode";
+    state[key] = btn.dataset.m;
+    syncFooterModes();
+    renderPoster();
+  });
+});
+
+function bindLogoUpload(btnId, editId, clearId, fileId, key, modeKey) {
+  document.getElementById(btnId).addEventListener("click", () =>
+    document.getElementById(fileId).click());
+  document.getElementById(editId).addEventListener("click", () => openEditor(key));
+  document.getElementById(clearId).addEventListener("click", () => {
+    state[key] = state[key + "Orig"] = null;
+    state[modeKey] = "text"; // nothing to show — fall back to text
+    syncFooterModes();
+    renderPoster();
+  });
+  document.getElementById(fileId).addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      state[key] = state[key + "Orig"] = reader.result;
+      state[modeKey] = "image";
+      syncFooterModes();
+      renderPoster();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  });
+}
+bindLogoUpload("btnFLogo", "btnFLogoEdit", "btnFLogoX", "fileFLogo", "footerImg", "footer1Mode");
+bindLogoUpload("btnFRLogo", "btnFRLogoEdit", "btnFRLogoX", "fileFRLogo", "footerRightImg", "footer2Mode");
+
+/* footer image size sliders */
+[["rngF1Scale", "valF1Scale", "footerImgScale", "--f1s"],
+ ["rngF2Scale", "valF2Scale", "footerRightImgScale", "--f2s"]].forEach(([rid, vid, key, cssVar]) => {
+  document.getElementById(rid).addEventListener("input", (e) => {
+    state[key] = Number(e.target.value);
+    document.getElementById(vid).textContent = state[key].toFixed(2).replace(/0$/, "");
+    poster.style.setProperty(cssVar, state[key]);
+  });
+});
+function syncFooterScales() {
+  document.getElementById("rngF1Scale").value = state.footerImgScale;
+  document.getElementById("valF1Scale").textContent = state.footerImgScale.toFixed(2).replace(/0$/, "");
+  document.getElementById("rngF2Scale").value = state.footerRightImgScale;
+  document.getElementById("valF2Scale").textContent = state.footerRightImgScale.toFixed(2).replace(/0$/, "");
+}
+
+/* QR code upload (square slot on feedback layouts) */
+document.getElementById("btnQR").addEventListener("click", () =>
+  document.getElementById("fileQR").click());
+document.getElementById("btnQREdit").addEventListener("click", () => openEditor("qrImg"));
+document.getElementById("btnQRX").addEventListener("click", () => {
+  state.qrImg = state.qrImgOrig = null;
+  renderPoster();
+});
+document.getElementById("fileQR").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.qrImg = state.qrImgOrig = reader.result;
+    renderPoster();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
+
+/* ================= Image editor (crop / reposition / aspect) ================= */
+const ed = {
+  target: null,   // "image" | "footerImg" | "footerRightImg"
+  img: document.getElementById("editorImg"),
+  iw: 0, ih: 0,   // natural size
+  vw: 440, vh: 330, // viewport size
+  z: 1, ox: 0, oy: 0,
+  dragging: false, px: 0, py: 0,
+};
+const edOverlay = document.getElementById("editorOverlay");
+const edViewport = document.getElementById("editorViewport");
+
+function edCoverScale() {
+  return Math.max(ed.vw / ed.iw, ed.vh / ed.ih);
+}
+function edClampAndPaint() {
+  const s = edCoverScale() * ed.z;
+  const dw = ed.iw * s, dh = ed.ih * s;
+  ed.ox = Math.min(0, Math.max(ed.vw - dw, ed.ox));
+  ed.oy = Math.min(0, Math.max(ed.vh - dh, ed.oy));
+  ed.img.style.width = dw + "px";
+  ed.img.style.left = ed.ox + "px";
+  ed.img.style.top = ed.oy + "px";
+}
+function edSetViewport() {
+  const val = document.getElementById("edAspect").value;
+  const ratio = val === "orig"
+    ? ed.iw / ed.ih
+    : Number(val.split(":")[0]) / Number(val.split(":")[1]);
+  ed.vw = 440;
+  ed.vh = Math.round(440 / ratio);
+  if (ed.vh > 400) { ed.vh = 400; ed.vw = Math.round(400 * ratio); }
+  edViewport.style.width = ed.vw + "px";
+  edViewport.style.height = ed.vh + "px";
+  // re-centre
+  const s = edCoverScale() * ed.z;
+  ed.ox = (ed.vw - ed.iw * s) / 2;
+  ed.oy = (ed.vh - ed.ih * s) / 2;
+  edClampAndPaint();
+}
+function openEditor(targetKey) {
+  const src = state[targetKey + "Orig"] || state[targetKey];
+  if (!src) { alert("Upload an image first."); return; }
+  ed.target = targetKey;
+  const probe = new Image();
+  probe.onload = () => {
+    ed.iw = probe.naturalWidth;
+    ed.ih = probe.naturalHeight;
+    ed.img.src = src;
+    ed.z = 1;
+    document.getElementById("edZoom").value = 1;
+    document.getElementById("edAspect").value = targetKey === "qrImg" ? "1:1" : "orig";
+    edOverlay.classList.add("open");
+    edSetViewport();
+  };
+  probe.src = src;
+}
+document.getElementById("edZoom").addEventListener("input", (e) => {
+  const zNew = Number(e.target.value);
+  // keep the viewport centre fixed while zooming
+  const sOld = edCoverScale() * ed.z;
+  const sNew = edCoverScale() * zNew;
+  const cx = (ed.vw / 2 - ed.ox) / sOld;
+  const cy = (ed.vh / 2 - ed.oy) / sOld;
+  ed.z = zNew;
+  ed.ox = ed.vw / 2 - cx * sNew;
+  ed.oy = ed.vh / 2 - cy * sNew;
+  edClampAndPaint();
+});
+document.getElementById("edAspect").addEventListener("change", edSetViewport);
+edViewport.addEventListener("pointerdown", (e) => {
+  ed.dragging = true;
+  ed.px = e.clientX; ed.py = e.clientY;
+  edViewport.classList.add("dragging");
+  edViewport.setPointerCapture(e.pointerId);
+});
+edViewport.addEventListener("pointermove", (e) => {
+  if (!ed.dragging) return;
+  ed.ox += e.clientX - ed.px;
+  ed.oy += e.clientY - ed.py;
+  ed.px = e.clientX; ed.py = e.clientY;
+  edClampAndPaint();
+});
+edViewport.addEventListener("pointerup", () => {
+  ed.dragging = false;
+  edViewport.classList.remove("dragging");
+});
+document.getElementById("edCancel").addEventListener("click", () =>
+  edOverlay.classList.remove("open"));
+edOverlay.addEventListener("click", (e) => {
+  if (e.target === edOverlay) edOverlay.classList.remove("open");
+});
+document.getElementById("edApply").addEventListener("click", () => {
+  const s = edCoverScale() * ed.z;
+  const sx = -ed.ox / s, sy = -ed.oy / s;
+  const sw = ed.vw / s, sh = ed.vh / s;
+  let W = Math.round(sw), H = Math.round(sh);
+  const CAP = 2400;
+  if (W > CAP) { H = Math.round(H * CAP / W); W = CAP; }
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  cv.getContext("2d").drawImage(ed.img, sx, sy, sw, sh, 0, 0, W, H);
+  // logos keep transparency (PNG); the main photo compresses better as JPEG
+  state[ed.target] = ed.target === "image"
+    ? cv.toDataURL("image/jpeg", 0.92)
+    : cv.toDataURL("image/png");
+  if (ed.target === "image") state.imgPos = { x: 50, y: 50 };
+  edOverlay.classList.remove("open");
+  renderPoster();
+});
+
+/* ================= Shuffle ================= */
+document.getElementById("btnShuffle").addEventListener("click", () => {
+  const keys = layoutPool().filter((k) => k !== state.layout);
+  if (keys.length) state.layout = keys[Math.floor(Math.random() * keys.length)];
+  // accessibility guard: only pick accents that stay visible against the
+  // background actually shown (invert swaps bg/ink)
+  const bg = state.invert ? state.ink : state.bg;
+  const visible = ACCENTS.filter((c) => contrast(c, bg) >= 1.6);
+  const pool = visible.length ? visible : ACCENTS;
+  state.accent = pool[Math.floor(Math.random() * pool.length)];
+  state.arrowRot = [0, 45, 90, 135, 180, 270, 315][Math.floor(Math.random() * 7)];
+  document.getElementById("colAccent").value = state.accent;
+  document.getElementById("rngArrow").value = state.arrowRot % 360;
+  buildLayoutPicker();
+  buildSwatches();
+  buildShapePicker();
+  renderPoster();
+});
+
+/* ================= Generate: compose a new layout ================= */
+/* Recombines block placements from the preset layouts on the shared 12x16
+   grid, rejecting compositions where text would collide with anything, so
+   the result is always on-grid and readable. */
+const GEN_TEXT = ["title", "kicker", "date", "details", "footer"];
+
+function spanRect(def) {
+  const [c1, c2] = def.c.split("/").map(Number);
+  const [r1, r2] = def.r.split("/").map(Number);
+  return { c1, c2, r1, r2 };
+}
+function rectsOverlap(a, b) {
+  return a.c1 < b.c2 && b.c1 < a.c2 && a.r1 < b.r2 && b.r1 < a.r2;
+}
+function shuffleArr(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function genCandidates(name) {
+  const out = [];
+  for (const key of layoutPool()) { // donors come from the active category only
+    const def = LAYOUTS[key].blocks[name];
+    if (!def) continue;
+    // full-bleed images would force text over the photo — excluded
+    if (name === "image" && (def.cls || "").includes("bleed")) continue;
+    const d = { ...def };
+    if (GEN_TEXT.includes(name) && d.cls) {
+      // white text came from overlay donors; generated text sits on the bg
+      d.cls = d.cls.replace(/\bc-white\b/g, "").trim() || undefined;
+    }
+    out.push(d);
+  }
+  return out;
+}
+function genMirror(name, def) {
+  const r = spanRect(def);
+  const m = { ...def, c: `${14 - r.c2}/${14 - r.c1}` }; // lines 1..13: mirror is 14-x
+  if (m.cls) {
+    // swap left/right-dependent classes when mirrored
+    m.cls = m.cls
+      .replace(/ext-l/g, "@L@").replace(/ext-r/g, "ext-l").replace(/@L@/g, "ext-r")
+      .replace(/round-br/g, "@B@").replace(/round-bl/g, "round-br").replace(/@B@/g, "round-bl");
+  }
+  if (name === "shape") {
+    m.shapeCls = def.shapeCls === "left" ? undefined
+      : def.shapeCls === "center" ? "center" : "left";
+  }
+  return m;
+}
+function genFits(name, cand, placed) {
+  const rect = spanRect(cand);
+  const isText = GEN_TEXT.includes(name);
+  for (const p of placed) {
+    if (!rectsOverlap(rect, p.rect)) continue;
+    // the QR must stay scannable: it may only sit on a panel
+    if (name === "qr" || p.name === "qr") {
+      const other = name === "qr" ? p.name : name;
+      if (other === "panel" || other === "panel2") continue;
+      return false;
+    }
+    // text never overlaps anything (incl. other text and the arrow circle)
+    if (isText || GEN_TEXT.includes(p.name)) return false;
+    continue; // everything else is graphics — stacking is allowed
+  }
+  return true;
+}
+function generateLayout() {
+  const order = state.category === "feedback"
+    ? [["qr", 1], ["title", 1], ["footer", 1], ["date", 1], ["kicker", 0.9],
+       ["details", 0.95], ["panel", 0.5], ["panel2", 0.35], ["image", 0.25]]
+    : [["image", 0.85], ["title", 1], ["footer", 1], ["date", 0.95],
+       ["kicker", 0.9], ["details", 0.9], ["panel", 0.3],
+       ["shape", state.category === "poster" ? 0 : 0.85]];
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const blocks = {};
+    const placed = [];
+    let ok = true;
+    for (const [name, prob] of order) {
+      if (Math.random() > prob) continue;
+      const required = name === "title" || name === "footer";
+      const cands = shuffleArr(
+        genCandidates(name).flatMap((d) => [d, genMirror(name, d)]));
+      const chosen = cands.find((c) => genFits(name, c, placed));
+      if (!chosen) {
+        if (required) { ok = false; break; }
+        continue;
+      }
+      blocks[name] = chosen;
+      placed.push({ name, rect: spanRect(chosen) });
+    }
+    if (ok) return blocks;
+  }
+  return JSON.parse(JSON.stringify(LAYOUTS[layoutPool()[0]].blocks)); // safe fallback
+}
+
+/* Colour accessibility for generated posters */
+function ensureAccessibleColours() {
+  // work on the pair as displayed: invert swaps which value is the background
+  const bgKey = state.invert ? "ink" : "bg";
+  const inkKey = state.invert ? "bg" : "ink";
+  // body text must clearly read against the background (WCAG AA)
+  if (contrast(state.ink, state.bg) < 4.5) {
+    state[inkKey] = lum(state[bgKey]) > 0.4 ? "#000054" : "#ffffff";
+    document.getElementById("colInk").value = state.ink;
+    document.getElementById("colBg").value = state.bg;
+  }
+  // accent must be visible; stronger requirement when it colours the title
+  const need = state.accentTitle ? 3 : 1.6;
+  if (contrast(state.accent, state[bgKey]) < need) {
+    const pool = ACCENTS.filter((c) => contrast(c, state[bgKey]) >= need);
+    if (pool.length) {
+      state.accent = pool[Math.floor(Math.random() * pool.length)];
+      document.getElementById("colAccent").value = state.accent;
+    }
+  }
+}
+
+document.getElementById("btnGenerate").addEventListener("click", () => {
+  const blocks = generateLayout();
+  LAYOUTS.generated = { name: "Generated", blocks };
+  state.layout = "generated";
+  state.generatedLayout = blocks; // persists through save/load
+  const need = state.accentTitle ? 3 : 1.6;
+  const bgEff = state.invert ? state.ink : state.bg;
+  const pool = ACCENTS.filter((c) => contrast(c, bgEff) >= need);
+  state.accent = (pool.length ? pool : ACCENTS)[
+    Math.floor(Math.random() * (pool.length ? pool.length : ACCENTS.length))];
+  state.arrowRot = [0, 45, 90, 135, 180, 270, 315][Math.floor(Math.random() * 7)];
+  document.getElementById("colAccent").value = state.accent;
+  document.getElementById("rngArrow").value = state.arrowRot % 360;
+  ensureAccessibleColours();
+  refreshPickers();
+  renderPoster();
+});
+
+/* ================= Save / Load ================= */
+document.getElementById("btnSave").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "swiss-poster-design.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.getElementById("btnLoad").addEventListener("click", () =>
+  document.getElementById("fileLoad").click());
+document.getElementById("fileLoad").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const loaded = JSON.parse(reader.result);
+      Object.assign(state, loaded);
+      if (loaded.generatedLayout) {
+        LAYOUTS.generated = { name: "Generated", blocks: loaded.generatedLayout };
+      }
+      if (loaded.layout === "dark") { // retired preset -> classic + invert
+        state.layout = "classic";
+        state.invert = true;
+      }
+      if (!LAYOUTS[state.layout]) state.layout = "classic";
+      if (!["signage", "poster", "feedback"].includes(state.category)) {
+        state.category = "signage";
+      }
+      syncCategoryUI();
+      // older design files: map the duotone checkbox to the effect select
+      if (typeof loaded.duotone === "boolean" && !loaded.effect) {
+        state.effect = loaded.duotone ? "duotone" : "none";
+      }
+      if (!["none", "duotone", "bw", "blur"].includes(state.effect)) {
+        state.effect = "none"; // includes retired "gradient"
+      }
+      state.type = Object.assign(typeDefaults(), loaded.type || {});
+      if (!state.blur) state.blur = 10;
+      if (!state.geo1) state.geo1 = "#E61E2A";
+      if (!state.geo2) state.geo2 = "#FAC800";
+      if (!state.geo3) state.geo3 = "#000054";
+      document.querySelectorAll("#sidebar [data-field]").forEach((i) => {
+        i.value = state[i.dataset.field] ?? "";
+      });
+      document.getElementById("colAccent").value = state.accent;
+      document.getElementById("colAccent2").value = state.accent2;
+      document.getElementById("colDuo").value = state.duoColor;
+      document.getElementById("colBg").value = state.bg;
+      document.getElementById("colInk").value = state.ink;
+      document.getElementById("selEffect").value = state.effect;
+      document.getElementById("rngBlur").value = state.blur;
+      document.getElementById("valBlur").textContent = state.blur + "px";
+      document.getElementById("colGeo1").value = state.geo1;
+      document.getElementById("colGeo2").value = state.geo2;
+      document.getElementById("colGeo3").value = state.geo3;
+      updateTreatmentOpts();
+      document.getElementById("chkGrain").checked = !!state.grain;
+      document.getElementById("chkInvert").checked = !!state.invert;
+      document.getElementById("chkAccentTitle").checked = !!state.accentTitle;
+      document.getElementById("chkGrid").checked = state.showGrid;
+      document.getElementById("rngArrow").value = state.arrowRot % 360;
+      if (!CANVASES[state.canvas]) state.canvas = "a4";
+      if (state.imageMode !== "photo" && state.imageMode !== "block" && !SHAPES[state.imageMode]) {
+        state.imageMode = "photo";
+      }
+      if (!state.blockColor) state.blockColor = "#E3E5E0";
+      // older files predate footer modes: infer from whether an image was set
+      if (!loaded.footer1Mode) state.footer1Mode = state.footerImg ? "image" : "text";
+      if (!loaded.footer2Mode) state.footer2Mode = state.footerRightImg ? "image" : "text";
+      if (!state.imgPos) state.imgPos = { x: 50, y: 50 };
+      if (!state.footerImgScale) state.footerImgScale = 1;
+      if (!state.footerRightImgScale) state.footerRightImgScale = 1;
+      syncFooterScales();
+      syncFooterModes();
+      syncCanvasButtons();
+      document.getElementById("colBlock").value = state.blockColor;
+      syncTypeControls();
+      applyCanvas();
+      buildLayoutPicker();
+      buildSwatches();
+      buildShapePicker();
+      renderPoster();
+    } catch (err) {
+      alert("Could not read that file: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+/* ================= Export ================= */
+document.getElementById("btnPrint").addEventListener("click", () => window.print());
+
+document.getElementById("btnPNG").addEventListener("click", async () => {
+  const c = CANVASES[state.canvas];
+  const W = c.w, H = c.h;
+  // scale so the exported width matches the preset's mm size at 300 dpi
+  const SCALE = (c.mm[0] / 25.4) * 300 / W;
+  const clone = poster.cloneNode(true);
+  clone.classList.remove("showgrid");
+  clone.querySelectorAll("[contenteditable]").forEach((el) =>
+    el.removeAttribute("contenteditable"));
+  const css = document.getElementById("appcss").textContent;
+  const html = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${W}px;height:${H}px;">
+      <style>${css}</style>${clone.outerHTML}</div>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+      <foreignObject width="100%" height="100%">${html}</foreignObject></svg>`;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(W * SCALE);
+    canvas.height = Math.round(H * SCALE);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(SCALE, SCALE);
+    ctx.drawImage(img, 0, 0);
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob) { alert("PNG export failed in this browser — use Print / Save PDF instead."); return; }
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "swiss-poster.png";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, "image/png");
+    } catch (err) {
+      alert("PNG export failed (" + err.message + ") — use Print / Save PDF instead.");
+    }
+  };
+  img.onerror = () => alert("PNG export failed in this browser — use Print / Save PDF instead.");
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+});
+
+/* ================= Fit poster to stage ================= */
+function fitPoster() {
+  const c = CANVASES[state.canvas];
+  const pad = 40, toolbarW = 80; // keep clear of the export toolbar
+  const s = Math.min(
+    (stage.clientWidth - pad - toolbarW) / c.w,
+    (stage.clientHeight - pad) / c.h
+  );
+  scaler.style.transform = `scale(${Math.min(s, 1.2)})`;
+}
+window.addEventListener("resize", fitPoster);
+
+/* ================= Accordion sidebar (one section open at a time) ================= */
+document.querySelectorAll("#sidebar section h2").forEach((h) => {
+  h.addEventListener("click", () => {
+    const sec = h.parentElement;
+    const wasCollapsed = sec.classList.contains("collapsed");
+    document.querySelectorAll("#sidebar section").forEach((s) =>
+      s.classList.add("collapsed"));
+    if (wasCollapsed) sec.classList.remove("collapsed");
+  });
+});
+// start with only Layout open
+document.querySelectorAll("#sidebar section").forEach((sec) => {
+  const name = sec.querySelector("h2").textContent.trim().toLowerCase();
+  if (name !== "layout") sec.classList.add("collapsed");
+});
+
+/* ================= Init ================= */
+syncCategoryUI();
+syncFooterModes();
+buildLayoutPicker();
+buildSwatches();
+buildShapePicker();
+syncTypeControls();
+updateTreatmentOpts();
+renderPoster();
+applyCanvas();
+</script>
+</body>
+</html>
